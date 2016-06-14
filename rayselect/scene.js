@@ -7,19 +7,24 @@ window.ExperimentalScene = (function () {
         
         this.pointerVec = [0,1,0];
         this.pointerOrigin = {x:0, y:0, z:0};
+        this.pointOfInterest = null;
         
         this.axisBases = {
             x: 1, y: 1, z: 1
         };
         
-        this.axisBaseOpts = [];
-        for (var i=-1; i<2; i++) {
-            for (var j=-1; j<2; j++) {
-                for (var k=-1; k<2; k++) {
-                    this.axisBaseOpts.push({x:i, y:j, z:k});
-                }
-            }
-        }
+        this.axisBaseOpts = [
+            {x:0, y:0, z:1},
+            {x:0, y:1, z:0},
+            {x:1, y:0, z:0},
+        ];
+        // for (var i=-1; i<2; i++) {
+        //     for (var j=-1; j<2; j++) {
+        //         for (var k=-1; k<2; k++) {
+        //             this.axisBaseOpts.push({x:i, y:j, z:k});
+        //         }
+        //     }
+        // }
         this.axisBaseSelected = 0;
         
         this.axisBase = null; /* use to override presents */
@@ -103,7 +108,7 @@ window.ExperimentalScene = (function () {
         console.log('setting up');
         
         /* Floor */
-        scene.addObject(new FCShapes.WallShape(
+        scene.addObject(new FCBasicShapes.WallShape(
             {x: 0, z: 0, y: -0.02},
             {minX: -20, maxX: 20, minY: -20, maxY: 20},
             {x:270/DEG, y:0/DEG, z:0/DEG},
@@ -116,7 +121,7 @@ window.ExperimentalScene = (function () {
             z: scene.stageParams.sizeZ / 2
         };
         console.log(scene.stageParams);
-        scene.addObject(new FCShapes.WallShape(
+        scene.addObject(new FCBasicShapes.WallShape(
             {x: 0, z: 0, y: 0},
             {minX: -1*stageExtent.x, maxX: stageExtent.x, minY: -1*stageExtent.z, maxY: stageExtent.z},
             {x:270/DEG, y:0/DEG, z:0/DEG},
@@ -182,7 +187,52 @@ window.ExperimentalScene = (function () {
         
         ctrl1.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, axisSelect));
         
-        /* Make some supplemental axial thingies */
+        var makeRayReporterButtonHandler = function (myScene, gpIdx) {
+            var bh = function (gpIdx, btnIdx, buttonStatus, tpSector, buttonRaw, extra) {
+                if (btnIdx == 1 && buttonStatus == 'released') {
+                    // console.log(btnIdx, extra);
+                    
+                    var myGp = extra.gamepad;
+                    var gPose = myGp.pose;
+                    var gpMat = mat4.create();
+                    
+                    if (window.vrDisplay.stageParameters) {
+                        mat4.fromRotationTranslation(gpMat, gPose.orientation, gPose.position);
+                        mat4.multiply(gpMat, vrDisplay.stageParameters.sittingToStandingTransform, gpMat);
+                    
+                        var ploc = scene.playerLocation;
+                        var trans = vec3.fromValues(ploc.x, ploc.y, ploc.z);
+                        var reloc = mat4.create();
+                        mat4.fromTranslation(reloc, trans);
+                        mat4.mul(gpMat, reloc, gpMat);
+                    
+                    }
+                    
+                    /* ok so that's all the transforms done... now try and extract what we actually wanted */
+                    /* - namely, the origin and vector */
+
+                    /* Trans is fine */
+                    var finalTrans = vec3.create();
+                    mat4.getTranslation(finalTrans, gpMat);
+                    scene.pointerOrigin = {x: finalTrans[0], y: finalTrans[1], z: finalTrans[2]};
+                    
+                    var myAxisBase = scene.axisBase || scene.axisBaseOpts[scene.axisBaseSelected];
+                    var axes = vec3.fromValues(myAxisBase.x, myAxisBase.y, myAxisBase.z);
+                    
+                    var roQuat = quat.create();
+                    mat4.getRotation(roQuat, gpMat);
+                    vec3.transformQuat(axes, axes, roQuat);
+                    scene.pointerVec = [axes[0], axes[1], axes[2]];
+                    
+                    
+                }
+                // console.log()
+            }
+            return bh;
+        }
+        
+        
+        /* Make some supplemental axial thingies, put a ray reporter on one of them */
         var lrg = 0.7, sml = 0.03;
         var trX = new FCShapes.SimpleCuboid(_hidden_beneath_floor, {w:lrg, h:sml, d:sml}, null, {textureLabel:'red', shaderLabel:'diffuse'});
         trX.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
@@ -191,7 +241,7 @@ window.ExperimentalScene = (function () {
         trY.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
         scene.addObject(trY);
         var trZ = new FCShapes.SimpleCuboid(_hidden_beneath_floor, {w:sml, h:sml, d:lrg}, null, {textureLabel:'mediumblue', shaderLabel:'diffuse'});
-        trZ.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
+        trZ.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, makeRayReporterButtonHandler(scene, 1)));
         scene.addObject(trZ);
         
         
@@ -270,9 +320,53 @@ window.ExperimentalScene = (function () {
                 }
             }
             return reporter;
-   
         }
-        ctrl1.behaviours.push(makeControllerRayReporter(scene, 1));
+        
+        var makeControllerRayReporter2 = function (myScene, gpIdx) {
+            var reporter = function (drawable, timePoint) {
+                
+                var vrGamepads = FCUtil.getVRGamepads();
+                // console.log('Got ', vrGamepads.length, 'VR gamepads from ', gamepads.length, 'total gamepads');
+                if (vrGamepads.length && vrGamepads[gpIdx]) {
+                    var myGp = vrGamepads[gpIdx];
+                    var gPose = myGp.pose;
+                    var gpMat = mat4.create();
+                    
+                    if (window.vrDisplay.stageParameters) {
+                        mat4.fromRotationTranslation(gpMat, gPose.orientation, gPose.position);
+                        mat4.multiply(gpMat, vrDisplay.stageParameters.sittingToStandingTransform, gpMat);
+                    
+                        var ploc = scene.playerLocation;
+                        var trans = vec3.fromValues(ploc.x, ploc.y, ploc.z);
+                        var reloc = mat4.create();
+                        mat4.fromTranslation(reloc, trans);
+                        mat4.mul(gpMat, reloc, gpMat);
+                    
+                    }
+                    
+                    /* ok so that's all the transforms done... now try and extract what we actually wanted */
+                    /* - namely, the origin and vector */
+
+                    /* Trans is fine */
+                    var finalTrans = vec3.create();
+                    mat4.getTranslation(finalTrans, gpMat);
+                    scene.pointerOrigin = {x: finalTrans[0], y: finalTrans[1], z: finalTrans[2]};
+                    
+                    var myAxisBase = scene.axisBase || scene.axisBaseOpts[scene.axisBaseSelected];
+                    var axes = vec3.fromValues(myAxisBase.x, myAxisBase.y, myAxisBase.z);
+                    
+                    var roQuat = quat.create();
+                    mat4.getRotation(roQuat, gpMat);
+                    vec3.transformQuat(axes, axes, roQuat);
+                    // scene.pointerVec = [axes[0], axes[1], axes[2]];
+                    scene.pointerVec = vec3.fromValues(axes[0], axes[1], axes[2]);
+                }
+            }
+            return reporter;
+        }
+        
+        
+        // ctrl1.behaviours.push(makeControllerRayReporter2(scene, 1));
         scene.addObject(ctrl1);
         
         /* Add a bunch of cubes that track the pointer vector */
@@ -286,6 +380,13 @@ window.ExperimentalScene = (function () {
             newCube.behaviours.push(function (drawable, timePoint) {
                 var vec = myScene.pointerVec;
                 var origin = myScene.pointerOrigin;
+                var pOI = myScene.pointOfInterest;
+                if (pOI && Math.abs(offsetFactor) >= Math.abs(pOI)) {
+                    drawable.textureLabel = 'green';
+                }
+                else {
+                    drawable.textureLabel = (offsetFactor > 0 ? 'mediumpurple' : 'paleturquoise');
+                }
                 drawable.pos = {
                     x:origin.x + (vec[0] * offsetFactor), 
                     y:origin.y + (vec[1] * offsetFactor), 
@@ -296,9 +397,74 @@ window.ExperimentalScene = (function () {
         }
         
         for (var i=-10; i<10; i++) {
-            var nc = mkCube(scene, i/10.0);
+            var nc = mkCube(scene, i/6.0);
             scene.addObject(nc);
         }
+        
+        
+        
+        /* What next. Add a cube that changes colour when we point at it? */
+        /* We can make this a fairly basic implementation for now and improve / refactor later */
+        /* So let's base some kind of collider on the cube's front face? */
+        var colliderCube = new FCShapes.SimpleCuboid(
+            {x:1, y:1, z:2},
+            {w:0.5, h:0.5, d:0.5},
+            null,
+            {textureLabel:'orange', shaderLabel: 'diffuse', label: 'colliderCube'}
+        );
+        
+        var mkCollisionTester = function (scene, planeNormalValues, pointOnPlaneValues, collisionSquare) {
+            var collisionTester = function (drawable, timePoint) {
+                var planeNormal = vec3.fromValues(planeNormalValues[0], planeNormalValues[1], planeNormalValues[2]);// vec3 n
+                var pointOnPlane =  vec3.fromValues(pointOnPlaneValues[0],pointOnPlaneValues[1],pointOnPlaneValues[2]);// vec3 p0
+                var rayOrigin = vec3.fromValues(scene.pointerOrigin.x, scene.pointerOrigin.y, scene.pointerOrigin.z); // vec3 l0
+                var rayVector =  vec3.create();                 // vec3 l
+                var pointOfInterest = null;                     // float t
+                
+                vec3.normalize(rayVector, scene.pointerVec);
+                vec3.normalize(planeNormal, planeNormal);
+                
+                var denom = vec3.dot(planeNormal, rayVector);
+                // console.log(denom);
+                document.getElementById('readoutA').value = denom;
+                // if (denom > 0.0001) {
+                var pointvray = vec3.create();
+                vec3.subtract(pointvray, pointOnPlane, rayOrigin);
+                var pointOfInterest = vec3.dot(pointvray, planeNormal) / denom;
+                // console.log(denom, pointOfInterest);
+                document.getElementById('readoutB').value = pointOfInterest;
+                // var gcubes = vrScene.getObjectsInGroup('pointerCubes');
+                scene.pointOfInterest = pointOfInterest;
+                
+                scene.collisionPoint = null;
+                /* top, left, bottom, right in xy. not sure how to handle in 3d yet */
+                if (collisionSquare) {
+                    /* So, point of interest is the distance along the ray at which the ray/plane intersection occurs. */
+                    /* So we trace that and see if it's inside the square. */
+                    var poi = scene.pointOfInterest, pntrVec = scene.pointerVec, pntrOrig = scene.pointerOrigin;
+                    var coll = [
+                        pntrOrig.x + (poi*pntrVec[0]), 
+                        pntrOrig.y + (poi*pntrVec[1]), 
+                        pntrOrig.z + (poi*pntrVec[2])
+                    ];
+                    if (coll[0] > collisionSquare.left && coll[0] < collisionSquare.right
+                    && coll[1] > collisionSquare.bottom && coll[1] < collisionSquare.top) {
+                        document.getElementById('readoutC').value = 'collision detected!';
+                    }
+                    else {
+                        document.getElementById('readoutC').value = 'no collision detected';
+                    }
+                    scene.collisionPoint = coll;
+                    
+                }
+                
+                // }
+            }
+            return collisionTester;
+        }
+        
+        colliderCube.behaviours.push(mkCollisionTester(scene, [0,0,-1], [1,1,2], {left:0.5, top: 1.5, bottom: 1, right: 1.5}));
+        scene.addObject(colliderCube);
         
         
     }
