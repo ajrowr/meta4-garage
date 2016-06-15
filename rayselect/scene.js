@@ -29,6 +29,10 @@ window.ExperimentalScene = (function () {
         
         this.axisBase = null; /* use to override presents */
         
+        this.debugInfo = {
+            colliders: {}
+        }; /* Put everything in here */
+        
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -189,6 +193,14 @@ window.ExperimentalScene = (function () {
         
         var makeRayReporterButtonHandler = function (myScene, gpIdx) {
             var bh = function (gpIdx, btnIdx, buttonStatus, tpSector, buttonRaw, extra) {
+                if (btnIdx == 3 && buttonStatus == 'pressed') {
+                    var dbgInf = {
+                        debugInfo: scene.debugInfo,
+                        pointer: {vec: scene.pointerVec, origin: scene.pointerOrigin}
+                    };
+                    console.log(dbgInf);
+                    
+                }
                 if (btnIdx == 1 && buttonStatus == 'released') {
                     // console.log(btnIdx, extra);
                     
@@ -426,13 +438,13 @@ window.ExperimentalScene = (function () {
                 
                 var denom = vec3.dot(planeNormal, rayVector);
                 // console.log(denom);
-                document.getElementById('readoutA').value = denom;
+                // document.getElementById('readoutA').value = denom;
                 // if (denom > 0.0001) {
                 var pointvray = vec3.create();
                 vec3.subtract(pointvray, pointOnPlane, rayOrigin);
                 var pointOfInterest = vec3.dot(pointvray, planeNormal) / denom;
                 // console.log(denom, pointOfInterest);
-                document.getElementById('readoutB').value = pointOfInterest;
+                // document.getElementById('readoutB').value = pointOfInterest;
                 // var gcubes = vrScene.getObjectsInGroup('pointerCubes');
                 scene.pointOfInterest = pointOfInterest;
                 
@@ -502,8 +514,95 @@ window.ExperimentalScene = (function () {
             
         }
         
-        colliderCube.behaviours.push(mkCollisionTester(scene, [0,0,-1], [1,1,2], {left:0.5, top: 1.5, bottom: 1, right: 1.5}));
-        scene.addObject(colliderCube);
+        // colliderCube.behaviours.push(mkCollisionTester(scene, [0,0,-1], [1,1,2], {left:0.5, top: 1.5, bottom: 1, right: 1.5}));
+        // scene.addObject(colliderCube);
+
+
+        /* Just like findCollision except now we're trying to deal with 3d coords for collisionRect */
+        var findCollision3d = function (planeNormalValues, pointOnPlaneValues, collisionBox, pointerOrigin, pointerVec, debugObj) {
+            /* If collisionSquare is set {left: right: top: bottom:} then find collision with the square.
+            /* If not set find collision with the plane.
+            */
+            var planeNormal = vec3.fromValues(planeNormalValues[0], planeNormalValues[1], planeNormalValues[2]);// vec3 n
+            var pointOnPlane =  vec3.fromValues(pointOnPlaneValues[0],pointOnPlaneValues[1],pointOnPlaneValues[2]);// vec3 p0
+            var rayOrigin = vec3.fromValues(pointerOrigin.x, pointerOrigin.y, pointerOrigin.z); // vec3 l0
+            var rayVector =  vec3.create();                 // vec3 l
+            var pointOfInterest = null;                     // float t
+            
+            /* pointOfInterest represents the distance along the vector at which collision occurs with the plane. */
+            vec3.normalize(rayVector, pointerVec);
+            vec3.normalize(planeNormal, planeNormal);
+            
+            var denom = vec3.dot(planeNormal, rayVector);
+            var pointVsRay = vec3.create();
+            vec3.subtract(pointVsRay, pointOnPlane, rayOrigin);
+            var pointOfInterest = vec3.dot(pointVsRay, planeNormal) / denom;
+            
+            
+            if (collisionBox) {
+                var coll = [
+                    pointerOrigin.x + (pointOfInterest*rayVector[0]), 
+                    pointerOrigin.y + (pointOfInterest*rayVector[1]), 
+                    pointerOrigin.z + (pointOfInterest*rayVector[2])
+                ];
+                
+                /* Don't rely on these to be the left, right, top etc. They're just abstract concepts */
+                var colLeft, colRght, colTop, colBtm, colFrnt, colBack;
+                colLeft = Math.min(collisionBox.bottomLeft[0], collisionBox.topRight[0]);
+                colRght = Math.max(collisionBox.bottomLeft[0], collisionBox.topRight[0]);
+                colBtm = Math.min(collisionBox.bottomLeft[1], collisionBox.topRight[1]);
+                colTop = Math.max(collisionBox.bottomLeft[1], collisionBox.topRight[1]);
+                colFrnt = Math.min(collisionBox.bottomLeft[2], collisionBox.topRight[2]);
+                colBack = Math.max(collisionBox.bottomLeft[2], collisionBox.topRight[2]);
+                colFrnt -= 0.001; /* Feather it by a couple of mm so we (hopefully) don't fall prey to rounding errors */
+                colBack += 0.001;
+                
+                // console.log(colLeft, colRght, colTop, colBtm, colFrnt, colBack);
+                // console.log(coll);
+                // console.log(colLeft, colRght, colTop, colBtm, colFrnt, colBack);
+                // console.log(coll);
+
+                /* DEBUG */
+                if (debugObj) {
+                    debugObj.pointOfInterest = pointOfInterest;
+                    debugObj.collisionBoxInf = {
+                        x: [colLeft, coll[0], colRght],
+                        y: [colBtm, coll[1], colTop],
+                        z: [colFrnt, coll[2], colBack],
+                        collisionPoint: coll
+                    };
+                }
+
+
+                if (false) {
+                    console.log('x:', colLeft, coll[0], colRght);
+                    console.log('y:', colBtm, coll[1], colTop);
+                    console.log('z:', colFrnt, coll[2], colBack);
+                }
+                
+                if ((colLeft <= coll[0] && coll[0] <= colRght) 
+                 && (colBtm  <= coll[1] && coll[1] <= colTop)
+                 && (colFrnt <= coll[2] && coll[2] <= colBack)) {
+                     // console.log('yep');
+                     return pointOfInterest;
+                }
+                else {
+                    // console.log('nope');
+                    return null;
+                }
+                // if (coll[0] > collisionRect.left && coll[0] < collisionRect.right
+                // && coll[1] > collisionRect.bottom && coll[1] < collisionRect.top) {
+                //     return pointOfInterest;
+                // }
+                // else {
+                //     return null;
+                // }
+            }
+            
+            /* We're temporarily uninterested in the noCollisionBox case */
+            // return pointOfInterest; /* If it's not really colliding this could be a huge number. Maybe we set a ceiling? */
+            
+        }
         
         
         var P = FCPrimitives;
@@ -533,10 +632,21 @@ window.ExperimentalScene = (function () {
             };
             this.planeNormal = [0,0,-1];
             this.pointOnPlane = [pos.x + halfW, pos.y + halfH, pos.z];
-            
-            this.behaviours.push(function (drawable, timePoint) {
+            this.colliderV1 = {
+                rect: {
+                    left: pos.x - halfW,
+                    bottom: pos.y - halfH,
+                    right: pos.x + halfW,
+                    top: pos.y + halfH
+                },
+                normal: [0,0,-1],
+                pointOnPlane: [pos.x + halfW, pos.y + halfH, pos.z]
+            }
+                        
+            var findCollisionV1 = function (drawable, timePoint) {
+                var c = shape.colliderV1;
                 var pntrVec = shape.sceneRef.pointerVec, pntrOrig = shape.sceneRef.pointerOrigin;
-                var coll = findCollision(shape.planeNormal, shape.pointOnPlane, shape.colliderRectCoords, pntrOrig, pntrVec);
+                var coll = findCollision(c.normal, c.pointOnPlane, c.rect, pntrOrig, pntrVec);
                 // document.getElementById('readoutD').value = coll;
                 // poi = scene.pointOfInterest,
                 if (coll) {
@@ -545,7 +655,80 @@ window.ExperimentalScene = (function () {
                 else {
                     shape.textureLabel = 'gold';
                 }
-            });
+            }
+            
+            // this.behaviours.push(findCollisionV1);
+            
+            
+            /* The goal for v2 is to define the collider in the exact same terms as the object, and then apply transforms
+            /* in the same way in order to find the collidable surface.
+            */
+            
+            this.colliderV2 = {
+                rect: {
+                    // left: 0 - halfW,
+                    // bottom: 0 - halfH,
+                    // right: 0 + halfW,
+                    // top: 0 + halfH
+
+                    // bottomleft: [0-halfW, 0-halfH, 0],
+                    // topright: [halfW, halfH, 0]
+                    
+                    bottomLeft: vec3.fromValues(0-halfW, 0-halfH, 0),
+                    topRight: vec3.fromValues(halfW, halfH, 0)
+                },
+                normal: vec3.fromValues(0,0,-1),
+                pointOnPlane: vec3.fromValues(halfW, halfH, 0)
+            }
+            
+            var findCollisionV2 = function (drawable, timePoint) {
+                var c = shape.colliderV2;
+                var pntrVec = shape.sceneRef.pointerVec, pntrOrig = shape.sceneRef.pointerOrigin;
+                var debugObj = {};
+                
+                
+                /* Transform everything but the pointer by our transform matrix */
+                var transmat = shape.transformationMatrix();
+                var rectBL = vec3.clone(c.rect.bottomLeft);
+                vec3.transformMat4(rectBL, rectBL, transmat);
+                document.getElementById('readoutB').value = rectBL;
+                
+                var rectTR = vec3.clone(c.rect.topRight);
+                vec3.transformMat4(rectTR, rectTR, transmat);
+                document.getElementById('readoutC').value = rectTR;
+                
+                /* Normal */
+                var quW = quat.create();
+                var orien = drawable.currentOrientation || drawable.orientation;
+                quat.rotateX(quW, quW, orien.x);
+                quat.rotateY(quW, quW, orien.y);
+                quat.rotateZ(quW, quW, orien.z);
+                
+                var norm = vec3.clone(c.normal);
+                vec3.transformQuat(norm, norm, quW);
+                // vec3.transformMat4(norm, norm, transmat);
+                // vec3.rotate
+                document.getElementById('readoutA').value = norm;
+                
+                var pOP = vec3.clone(c.pointOnPlane);
+                vec3.transformMat4(pOP, pOP, transmat);
+                
+                var coll = findCollision3d(norm, pOP, {bottomLeft: rectBL, topRight: rectTR}, pntrOrig, pntrVec, debugObj);
+                document.getElementById('readoutD').value = coll;
+                // console.log(coll);
+                // poi = scene.pointOfInterest,
+                if (coll) {
+                    shape.textureLabel = 'red';
+                }
+                else {
+                    shape.textureLabel = 'gold';
+                }
+                
+                scene.debugInfo.colliders[drawable.label] = debugObj;
+            }
+            
+            this.behaviours.push(findCollisionV2);
+            
             
         }
         
@@ -572,23 +755,39 @@ window.ExperimentalScene = (function () {
             return {indices: poly.indices, vertices: poly.verts};
         }
         
-        var flatC1 = new FlatColliderShape(
-            {x: 2, y: 1, z: 2},
-            {w: 1, h:1},
-            {x:0, y:180/DEG, z:0}, 
-            {textureLabel: 'gold', shaderLabel: 'diffuse', groupLabel: 'colliders'},
-            scene
-        );
-        scene.addObject(flatC1);
+        if (true) {
+            var flatC1 = new FlatColliderShape(
+                {x: 2, y: 1, z: 2},
+                {w: 1, h:1},
+                {x:0, y:180/DEG, z:0}, 
+                {textureLabel: 'gold', shaderLabel: 'diffuse', groupLabel: 'colliders', label:'c1'},
+                scene
+            );
+            scene.addObject(flatC1);
+        }
+        
 
-        var flatC2 = new FlatColliderShape(
-            {x: -4, y: 3, z: 2},
-            {w: 2, h:1},
-            {x:0, y:180/DEG, z:0}, 
-            {textureLabel: 'gold', shaderLabel: 'diffuse', groupLabel: 'colliders'},
-            scene
-        );
-        scene.addObject(flatC2);
+        if (true) {
+            var flatC2 = new FlatColliderShape(
+                {x: -4, y: 3, z: 2},
+                {w: 2, h:1},
+                {x:0, y:180/DEG, z:0},
+                {textureLabel: 'gold', shaderLabel: 'diffuse', groupLabel: 'colliders', label:'c2'},
+                scene
+            );
+            scene.addObject(flatC2);
+        }
+
+        if (true) {
+            var flatC3 = new FlatColliderShape(
+                {x: -4, y: 3, z: -3},
+                {w: 2, h:1},
+                {x:0, y:45/DEG, z:0},
+                {textureLabel: 'gold', shaderLabel: 'diffuse', groupLabel: 'colliders', label:'c3'},
+                scene
+            );
+            scene.addObject(flatC3);
+        }
 
         
     }
