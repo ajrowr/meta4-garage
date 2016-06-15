@@ -581,8 +581,10 @@ window.ExperimentalScene = (function () {
                 }
                 
                 if ((colLeft <= coll[0] && coll[0] <= colRght) 
-                 && (colBtm  <= coll[1] && coll[1] <= colTop)
-                 && (colFrnt <= coll[2] && coll[2] <= colBack)) {
+                && (colBtm  <= coll[1] && coll[1] <= colTop)
+                && (colFrnt <= coll[2] && coll[2] <= colBack)
+                && pointOfInterest <= 0
+                ) {
                      // console.log('yep');
                      return pointOfInterest;
                 }
