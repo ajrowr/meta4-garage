@@ -408,7 +408,7 @@ window.ExperimentalScene = (function () {
             return newCube;
         }
         
-        for (var i=-10; i<10; i++) {
+        for (var i=-20; i<10; i++) {
             var nc = mkCube(scene, i/6.0);
             scene.addObject(nc);
         }
@@ -550,12 +550,27 @@ window.ExperimentalScene = (function () {
                 var colLeft, colRght, colTop, colBtm, colFrnt, colBack;
                 colLeft = Math.min(collisionBox.bottomLeft[0], collisionBox.topRight[0]);
                 colRght = Math.max(collisionBox.bottomLeft[0], collisionBox.topRight[0]);
+                if (colRght - colLeft < 0.001) {
+                    colLeft -= 0.002;
+                    colRght += 0.002;
+                }
                 colBtm = Math.min(collisionBox.bottomLeft[1], collisionBox.topRight[1]);
                 colTop = Math.max(collisionBox.bottomLeft[1], collisionBox.topRight[1]);
+                if (colTop - colBtm < 0.001) {
+                    colBtm -= 0.002;
+                    colTop += 0.002;
+                }
                 colFrnt = Math.min(collisionBox.bottomLeft[2], collisionBox.topRight[2]);
                 colBack = Math.max(collisionBox.bottomLeft[2], collisionBox.topRight[2]);
-                colFrnt -= 0.001; /* Feather it by a couple of mm so we (hopefully) don't fall prey to rounding errors */
-                colBack += 0.001;
+                if (colBack - colFrnt < 0.001) {
+                    colFrnt -= 0.002;
+                    colBack += 0.002;
+                }
+                
+                /* ^^ rounding errors can really mess us up. Multidimensional ones particularly. Feather them out */
+                
+                // colFrnt -= 0.001; /* Feather it by a couple of mm so we (hopefully) don't fall prey to rounding errors */
+                // colBack += 0.001;
                 
                 // console.log(colLeft, colRght, colTop, colBtm, colFrnt, colBack);
                 // console.log(coll);
@@ -789,6 +804,22 @@ window.ExperimentalScene = (function () {
                 scene
             );
             scene.addObject(flatC3);
+        }
+        
+        
+        /* Okay now let's make a shitload of them for testing purposes */
+        var thingCount = 40;
+        var anglePer = (2*Math.PI)/thingCount;
+        var dist = 10;
+        for (var i=0; i<thingCount; i++) {
+            var col = new FlatColliderShape(
+                {x: dist*Math.cos(anglePer*i), y: 1, z: dist*Math.sin(anglePer*i)},
+                {w:0.8, h:2},
+                {x: 0, y: (-1*anglePer*i)-90/DEG, z:0},
+                {shaderLabel: 'diffuse', textureLabel: 'silver', label: 'col'+i},
+                scene
+            );
+            scene.addObject(col);
         }
 
         
