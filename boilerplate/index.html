@@ -5,6 +5,7 @@
         
         <script src="/carnival/lib/fc_util.js"></script>
         <script src="/carnival/lib/fc_primitives.js"></script>
+        <script src="/carnival/lib/fc_basicshapes.js"></script>
         <script src="/carnival/lib/fc_scene.js"></script>
         <script src="/carnival/lib/fc_feedtools.js"></script>
         <script src="scene.js"></script>
@@ -17,7 +18,13 @@
             <canvas id="webgl-canvas" style="height: 30%;"></canvas>
         </div>
         <div id="controls-container">
-            
+            <div id="readouts-container">
+                <input type="text" id="readoutA"><br>
+                <input type="text" id="readoutB"><br>
+                <input type="text" id="readoutC"><br>
+                <input type="text" id="readoutD"><br>
+                <input type="text" id="readoutE"><br>
+            </div>
         </div>
         
         <script>
@@ -35,6 +42,12 @@
             
         };
         
+
+        window.updateReadout = function (readoutIdent, newValue) {
+            var readoutElem = document.getElementById('readout' + readoutIdent);
+            readoutElem.value = newValue;
+        }
+
         
         </script>
         <script src="/carnival/lib/fc_engine.js"></script>

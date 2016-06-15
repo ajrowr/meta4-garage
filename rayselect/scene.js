@@ -708,11 +708,13 @@ window.ExperimentalScene = (function () {
                 var transmat = shape.transformationMatrix();
                 var rectBL = vec3.clone(c.rect.bottomLeft);
                 vec3.transformMat4(rectBL, rectBL, transmat);
-                document.getElementById('readoutB').value = rectBL;
+                updateReadout('B', rectBL);
+                // document.getElementById('readoutB').value = rectBL;
                 
                 var rectTR = vec3.clone(c.rect.topRight);
                 vec3.transformMat4(rectTR, rectTR, transmat);
-                document.getElementById('readoutC').value = rectTR;
+                updateReadout('C', rectTR);
+                // document.getElementById('readoutC').value = rectTR;
                 
                 /* Normal */
                 var quW = quat.create();
@@ -725,7 +727,8 @@ window.ExperimentalScene = (function () {
                 vec3.transformQuat(norm, norm, quW);
                 // vec3.transformMat4(norm, norm, transmat);
                 // vec3.rotate
-                document.getElementById('readoutA').value = norm;
+                // document.getElementById('readoutA').value = norm;
+                updateReadout('A', norm);
                 
                 var pOP = vec3.clone(c.pointOnPlane);
                 vec3.transformMat4(pOP, pOP, transmat);
