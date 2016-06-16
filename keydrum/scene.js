@@ -339,7 +339,7 @@ window.ExperimentalScene = (function () {
         
         
         
-        var makeControllerRayProjector = function (scene, gpId, collider) {
+        var makeControllerRayProjector = function (scene, gpId, colliders) {
             var projector = function (drawable, timePoint) {
                 var vrGamepads = FCUtil.getVRGamepads();
                 // console.log('Got ', vrGamepads.length, 'VR gamepads from ', gamepads.length, 'total gamepads');
@@ -376,15 +376,20 @@ window.ExperimentalScene = (function () {
                     scene.pointerVec = myPointerVector;
                     scene.pointerOrigin = myPointerOrigin;
                     
-                    if (collider) {
-                        // console.log(myPointerOrigin, myPointerVector);
-                        var d = collider.findRayCollision(myPointerOrigin, myPointerVector);
-                        if (d) {
-                            // console.log(d, collider.collisionBoxes[d.idx]);
+                    if (colliders) {
+                        for (var i=0; i<colliders.length; i++) {
+                            var collider = colliders[i];
+                            // console.log(myPointerOrigin, myPointerVector);
+                            var d = collider.findRayCollision(myPointerOrigin, myPointerVector);
+                            if (d) {
+                                // console.log(d, collider.collisionBoxes[d.idx]);
+                                
+                                myGp.vibrate(20); /* TODO find somewhere else for this to live! */
+                                updateReadout('D', d.idx);
                             
-                            updateReadout('D', d.idx);
-                        }
+                            }
                         
+                        }
                         
                     }
                 }
@@ -495,7 +500,7 @@ window.ExperimentalScene = (function () {
         );
         stickbead.translation = {x:0, y:0, z:-0.55};
         stickbead.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
-        stickbead.behaviours.push(makeControllerRayProjector(scene, 1, colliderplane));
+        stickbead.behaviours.push(makeControllerRayProjector(scene, 1, [colliderplane]));
         scene.addObject(stickbead);
         
         
