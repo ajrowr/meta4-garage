@@ -91,7 +91,7 @@ window.ExperimentalScene = (function () {
             {x: 0, z: 0, y: -0.02},
             {minX: -20, maxX: 20, minY: -20, maxY: 20},
             {x:270/DEG, y:0/DEG, z:0/DEG},
-            {label: 'floor', textureLabel: 'concrete01', shaderLabel: 'diffuse', segmentsX: 40, segmentsY: 40}
+            {label: 'floor', textureLabel: 'silver', shaderLabel: 'diffuse', segmentsX: 40, segmentsY: 40}
         ));
         
         /* Raft */
@@ -169,6 +169,7 @@ window.ExperimentalScene = (function () {
             this.bracketDistanceMin = p.bracketDistanceMin || 0;   /* Discard collisions outside of  */
             this.bracketDistanceMax = p.bracketDistanceMax || 100; /*  0-100m by default             */
             this.features = []; /* List of things to be tested in the plane */
+            this.collisionBoxes = [];
         }
         
         
@@ -232,66 +233,98 @@ window.ExperimentalScene = (function () {
             updateReadout('C', collider.bracketDistanceMax);
             
             /* Update status cube */
-            var sc = scene.getObjectByLabel('statusCube');
-            sc.pos = {
-                x:testRayOrigin.x + pointOfInterest*rayVector[0],
-                y:testRayOrigin.y + pointOfInterest*rayVector[1],
-                z:testRayOrigin.z + pointOfInterest*rayVector[2],
+            if (collider.bracketDistanceMin <= pointOfInterest && pointOfInterest <= collider.bracketDistanceMax) {
+                var sc = scene.getObjectByLabel('statusCube');
+                sc.pos = {
+                    x:testRayOrigin.x + pointOfInterest*rayVector[0],
+                    y:testRayOrigin.y + pointOfInterest*rayVector[1],
+                    z:testRayOrigin.z + pointOfInterest*rayVector[2],
+                }
+                
+            }
+            else {
+                return;
             }
             
             // if ()
             
-            if (collider.collisionBox) {
-                var coll = [
-                    pointerOrigin.x + (pointOfInterest*rayVector[0]), 
-                    pointerOrigin.y + (pointOfInterest*rayVector[1]), 
-                    pointerOrigin.z + (pointOfInterest*rayVector[2])
+            if (collider.collisionBoxes) {
+                var collisionPoint = [
+                    testRayOrigin.x + (pointOfInterest*rayVector[0]), 
+                    testRayOrigin.y + (pointOfInterest*rayVector[1]), 
+                    testRayOrigin.z + (pointOfInterest*rayVector[2])
                 ];
-                
-                /* Don't rely on these to be the left, right, top etc. They're just abstract concepts */
-                var colLeft, colRght, colTop, colBtm, colFrnt, colBack;
-                colLeft = Math.min(collisionBox.bottomLeft[0], collisionBox.topRight[0]);
-                colRght = Math.max(collisionBox.bottomLeft[0], collisionBox.topRight[0]);
-                if (colRght - colLeft < 0.001) {
-                    colLeft -= 0.002;
-                    colRght += 0.002;
-                }
-                colBtm = Math.min(collisionBox.bottomLeft[1], collisionBox.topRight[1]);
-                colTop = Math.max(collisionBox.bottomLeft[1], collisionBox.topRight[1]);
-                if (colTop - colBtm < 0.001) {
-                    colBtm -= 0.002;
-                    colTop += 0.002;
-                }
-                colFrnt = Math.min(collisionBox.bottomLeft[2], collisionBox.topRight[2]);
-                colBack = Math.max(collisionBox.bottomLeft[2], collisionBox.topRight[2]);
-                if (colBack - colFrnt < 0.001) {
-                    colFrnt -= 0.002;
-                    colBack += 0.002;
+                for (var i=0; i<collider.collisionBoxes.length; i++) {
+                    
+                    var cbox = collider.collisionBoxes[i];
+                    var boxBL = vec3.clone(cbox.bottomLeft);
+                    vec3.transformMat4(boxBL, boxBL, transmat);
+                    // updateReadout('B', boxBL);
+                    
+                    var boxTR = vec3.clone(cbox.topRight);
+                    vec3.transformMat4(boxTR, boxTR, transmat);
+                    // updateReadout('C', boxTR);
+                                            
+                    
+                    
+                    /* Don't rely on these to be the left, right, top etc. They're just abstract concepts */
+                    var colLeft, colRght, colTop, colBtm, colFrnt, colBack;
+                    colLeft = Math.min(boxBL[0], boxTR[0]);
+                    colRght = Math.max(boxBL[0], boxTR[0]);
+                    if (colRght - colLeft < 0.001) {
+                        colLeft -= 0.002;
+                        colRght += 0.002;
+                    }
+                    colBtm = Math.min(boxBL[1], boxTR[1]);
+                    colTop = Math.max(boxBL[1], boxTR[1]);
+                    if (colTop - colBtm < 0.001) {
+                        colBtm -= 0.002;
+                        colTop += 0.002;
+                    }
+                    colFrnt = Math.min(boxBL[2], boxTR[2]);
+                    colBack = Math.max(boxBL[2], boxTR[2]);
+                    if (colBack - colFrnt < 0.001) {
+                        colFrnt -= 0.002;
+                        colBack += 0.002;
+                    }
+                    
+                    if ((colLeft <= collisionPoint[0] && collisionPoint[0] <= colRght) 
+                    && (colBtm  <= collisionPoint[1] && collisionPoint[1] <= colTop)
+                    && (colFrnt <= collisionPoint[2] && collisionPoint[2] <= colBack)
+                    && pointOfInterest <= 0) {
+                         // console.log('yep');
+                         if (cbox.callback) {
+                             cbox.callback(); /* TODO what to put in here? */
+                         }
+                         return {idx: i, poi: pointOfInterest};
+                    }
+                    
+                    
                 }
                 
                 /* DEBUG */
                 if (debugObj) {
                     debugObj.pointOfInterest = pointOfInterest;
                     debugObj.collisionBoxInf = {
-                        x: [colLeft, coll[0], colRght],
-                        y: [colBtm, coll[1], colTop],
-                        z: [colFrnt, coll[2], colBack],
-                        collisionPoint: coll
+                        x: [colLeft, collisionPoint[0], colRght],
+                        y: [colBtm, collisionPoint[1], colTop],
+                        z: [colFrnt, collisionPoint[2], colBack],
+                        collisionPoint: collisionPoint
                     };
                 }
 
-                if ((colLeft <= coll[0] && coll[0] <= colRght) 
-                && (colBtm  <= coll[1] && coll[1] <= colTop)
-                && (colFrnt <= coll[2] && coll[2] <= colBack)
-                && pointOfInterest <= 0
-                ) {
-                     // console.log('yep');
-                     return pointOfInterest;
-                }
-                else {
-                    // console.log('nope');
-                    return null;
-                }
+                // if ((colLeft <= coll[0] && coll[0] <= colRght)
+                // && (colBtm  <= coll[1] && coll[1] <= colTop)
+                // && (colFrnt <= coll[2] && coll[2] <= colBack)
+                // && pointOfInterest <= 0
+                // ) {
+                //      // console.log('yep');
+                //      return pointOfInterest;
+                // }
+                // else {
+                //     // console.log('nope');
+                //     return null;
+                // }
             }
             
         }
@@ -346,7 +379,13 @@ window.ExperimentalScene = (function () {
                     if (collider) {
                         // console.log(myPointerOrigin, myPointerVector);
                         var d = collider.findRayCollision(myPointerOrigin, myPointerVector);
-                        updateReadout('D', d);
+                        if (d) {
+                            // console.log(d, collider.collisionBoxes[d.idx]);
+                            
+                            updateReadout('D', d.idx);
+                        }
+                        
+                        
                     }
                 }
             }
@@ -355,11 +394,12 @@ window.ExperimentalScene = (function () {
         
         
         /* Make our collider plane */
+        var cRows = 5, cCols = 10;
         var kbplane = new FCBasicShapes.WallShape(
             {x: 0, y:1, z: 2},
             {minX: -1, maxX: 1, minY:-0.5, maxY: 0.5},
-            null,// {x:225/DEG, y:0, z:0},
-            {shaderLabel: 'diffuse', textureLabel: 'royalblue', label: 'kbplane'}
+            {x:225/DEG, y:0, z:0},
+            {shaderLabel: 'diffuse', textureLabel: 'concrete01', label: 'kbplane', segmentsX: cCols, segmentsY:cRows}
         
         );
         scene.addObject(kbplane);
@@ -367,16 +407,67 @@ window.ExperimentalScene = (function () {
         var colliderplane = new PlanarCollider(
             {
                 planeNormal: [0, 0, -1], /* Untransformed */
-                pointOnPlane: [0, 0, 0] /* Note this well. If you're  */
+                pointOnPlane: [0, 0, 0] /* This point gets transformed into the plane space so it's unusual to change this  */
             },
-            kbplane
+            kbplane,
+            {
+                bracketDistanceMin: -0.6,
+                bracketDistanceMax: -0.5
+            }
         );
         window.cplane = colliderplane;
+        
+        var callbackGlobalState = {
+            currentGlyph: null,
+            pressedAt: null
+        };
+        var mkCallbacker = function (idx) {
+            var glyphs = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            var s = callbackGlobalState;
+            return function () {
+                var outGlyph = null;
+                var myGlyph = glyphs[idx];
+                var currentTime = Date.now();
+                if (myGlyph != s.currentGlyph || currentTime > s.pressedAt+500 ) {
+                    outGlyph = myGlyph;
+                    s.currentGlyph = myGlyph;
+                    s.pressedAt = currentTime;
+                }
+                // if (!s.pressedAt) {
+                //     s.pressedAt()
+                // }
+                // console.log(idx);
+                if (outGlyph) {
+                    console.log(idx, outGlyph);
+                }
+            }
+        }
+        
+        var segW = (kbplane.size.maxX - kbplane.size.minX)/cCols;
+        var segH = (kbplane.size.maxY - kbplane.size.minY)/cRows;
+        for (var i=0; i<cCols; i++) {
+            var l = kbplane.size.minX + (i*segW);
+            var r = l+segW;
+            for (var j=0; j<cRows; j++) {
+                var b = kbplane.size.minY + (j*segH);
+                var t = b+segH;
+                var cdat = {
+                    bottomLeft: [l, b ,0],
+                    topRight: [r, t, 0],
+                    callback: mkCallbacker(i*cRows + j)
+                }
+                colliderplane.collisionBoxes.push(cdat);
+                // console.log(cdat);
+            }
+            
+        }
+        
+        // colliderplane.collisionBoxes.push({bottomLeft:[-1, -0.5, 0], topRight:[0, 0, 0], callback: null});
         
         
         var statusCube = new FCShapes.SimpleCuboid(
             null,
-            {w: 0.54, h:0.54, d:0.04},
+            {w: 0.14, h:0.14, d:0.04},
             null,
             {shaderLabel: 'diffuse', textureLabel: 'red', label:'statusCube'}
         );
