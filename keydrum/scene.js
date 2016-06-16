@@ -394,12 +394,13 @@ window.ExperimentalScene = (function () {
         
         
         /* Make our collider plane */
-        var cRows = 5, cCols = 10;
+        /* Even though it's a renderable object, it's invisible. We're pretty much just using it as an anchor for the others */
+        var cRows = 5, cCols = 15;
         var kbplane = new FCBasicShapes.WallShape(
             {x: 0, y:1, z: 2},
-            {minX: -1, maxX: 1, minY:-0.5, maxY: 0.5},
-            {x:225/DEG, y:0, z:0},
-            {shaderLabel: 'diffuse', textureLabel: 'concrete01', label: 'kbplane', segmentsX: cCols, segmentsY:cRows}
+            {minX: -1, maxX: 1.5, minY:-0.5, maxY: 0.5},
+            {x:55/DEG, y:180/DEG, z:0},
+            {shaderLabel: 'diffuse', textureLabel: null, label: 'kbplane', segmentsX: cCols, segmentsY:cRows}
         
         );
         scene.addObject(kbplane);
@@ -417,12 +418,15 @@ window.ExperimentalScene = (function () {
         );
         window.cplane = colliderplane;
         
+        // var glyphset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        var glyphset = 'abcd`-zaq1-xsw2-cde3-vfr4-bgt5-nhy6-mju7-,ki8-.lo9-/;p0--------------------------';
+        // var glyphset = 'abcdefghijklmnopqrst`1234567890-=--JKLMNOPQRSTUVWXYZ';
         var callbackGlobalState = {
             currentGlyph: null,
             pressedAt: null
         };
         var mkCallbacker = function (idx) {
-            var glyphs = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            var glyphs = glyphset;
             var s = callbackGlobalState;
             return function () {
                 var outGlyph = null;
@@ -439,24 +443,33 @@ window.ExperimentalScene = (function () {
                 // console.log(idx);
                 if (outGlyph) {
                     console.log(idx, outGlyph);
+                    var elem = document.getElementById('output');
+                    elem.value = elem.value + outGlyph;
+                    
                 }
             }
         }
         
+        /* Set up kb segments */
         var segW = (kbplane.size.maxX - kbplane.size.minX)/cCols;
         var segH = (kbplane.size.maxY - kbplane.size.minY)/cRows;
         for (var i=0; i<cCols; i++) {
-            var l = kbplane.size.minX + (i*segW);
-            var r = l+segW;
             for (var j=0; j<cRows; j++) {
-                var b = kbplane.size.minY + (j*segH);
-                var t = b+segH;
+                var l = kbplane.size.minX + (i*segW) + (j*-0.06) + 0.01;
+                var r = l+segW - 0.01;
+                var b = (kbplane.size.minY + (j*segH)) + 0.01;
+                var t = (b+segH) - 0.01;
+                var glyphIdx = i*cRows + j;
                 var cdat = {
                     bottomLeft: [l, b ,0],
                     topRight: [r, t, 0],
-                    callback: mkCallbacker(i*cRows + j)
+                    callback: mkCallbacker(glyphIdx)
                 }
                 colliderplane.collisionBoxes.push(cdat);
+                var tx = FCUtil.renderTextToTexture(scene.gl, [{t: glyphset[glyphIdx]}], {canvasWidth: 64, canvasHeight: 64});
+                var keyCap = new FCBasicShapes.WallShape(null, {minX: l, minY: b, maxX: r, maxY: t}, null, {shaderLabel: 'diffuse', texture: tx, segmentsX:1, segmentsY:1});
+                keyCap.matrix = kbplane.transformationMatrix();
+                scene.addObject(keyCap);
                 // console.log(cdat);
             }
             
