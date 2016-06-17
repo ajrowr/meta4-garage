@@ -5,6 +5,70 @@
 window.ExperimentalScene = (function () {
     "use strict";
     
+    var KeyboardArbiter = function (scene, backingStore, display, params) {
+        var p = params || {};
+        
+        this.scene = scene;
+        this.backingStore = backingStore;
+        this.display = display;
+        
+        this.displayAutoManage = p.displayAutoManage || true;
+        
+        this.glyphs = 'abcd` zaq1 xsw2 cde3 vfr4 bgt5-nhy6-mju7-,ki8-.lo9-/;p0--------------------------';
+        this.cbGlobalState = {};
+    }
+    
+    KeyboardArbiter.prototype.updateDisplay = function () {
+        var arbiter = this;
+        var t = FCUtil.renderTextToTexture(arbiter.scene.gl, [
+            {t: arbiter.backingStore.value}
+        ], {canvasWidth: 500, canvasHeight: 300});
+        arbiter.display.texture = t;
+    }
+    
+    KeyboardArbiter.prototype.generateKeypressCallback = function (keyIdx) {
+        var arbiter = this;
+        console.log(keyIdx);
+        var cb = function (ctx) {
+            console.log('called back');
+            var glyphs = arbiter.glyphs;
+            var s = arbiter.cbGlobalState;
+            // return function (ctx) {
+                var outGlyph = null;
+                var myGlyph = glyphs[keyIdx];
+                var currentTime = Date.now();
+                if (myGlyph != s.currentGlyph || currentTime > s.pressedAt+200 ) {
+                    outGlyph = myGlyph;
+                    s.currentGlyph = myGlyph;
+                    s.pressedAt = currentTime;
+                }
+                // if (!s.pressedAt) {
+                //     s.pressedAt()
+                // }
+                // console.log(idx);
+                if (outGlyph) {
+                    console.log(keyIdx, outGlyph);
+                    // var elem = document.getElementById('output');
+                    var elem = arbiter.backingStore;
+                    elem.value = elem.value + outGlyph;
+                    if (ctx.gamepad) {
+                        ctx.gamepad.vibrate(20);
+                    }
+                    
+                }
+            // }
+            
+            
+            //
+            //
+            // arbiter.backingStore.value += arbiter.glyphs[keyIdx];
+            console.log(keyIdx);
+            arbiter.updateDisplay();
+        }
+        return cb;
+    }
+    
+    
     function Scene() {
         /* Declare any class and instance vars unique to this scene, here. */
         FCScene.call(this);
@@ -425,7 +489,7 @@ window.ExperimentalScene = (function () {
         window.cplane = colliderplane;
         
         // var glyphset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        var glyphset = 'abcd`-zaq1-xsw2-cde3-vfr4-bgt5-nhy6-mju7-,ki8-.lo9-/;p0--------------------------';
+        var glyphset = 'abcd` zaq1 xsw2 cde3 vfr4 bgt5-nhy6-mju7-,ki8-.lo9-/;p0--------------------------';
         // var glyphset = 'abcdefghijklmnopqrst`1234567890-=--JKLMNOPQRSTUVWXYZ';
         var callbackGlobalState = {
             currentGlyph: null,
@@ -459,6 +523,21 @@ window.ExperimentalScene = (function () {
             }
         }
         
+        var displayBoard = new FCBasicShapes.WallShape(
+            {x:0, y:0, z: 3},
+            {minX: -2, maxX: 2, minY: 1, maxY:3},
+            {x:0, y: 180/DEG, z:0},
+            {shaderLabel: 'diffuse', textureLabel: 'paleturquoise', segmentsX: 1, segmentsY: 1}
+        );
+        scene.addObject(displayBoard);
+        
+        
+        
+        
+        var keyboardArbiter = new KeyboardArbiter(scene, document.getElementById('output'), displayBoard, null);
+        // keyboardArbiter.generateKeypressCallback()
+        
+        
         /* Set up kb segments */
         var segW = (kbplane.size.maxX - kbplane.size.minX)/cCols;
         var segH = (kbplane.size.maxY - kbplane.size.minY)/cRows;
@@ -472,7 +551,7 @@ window.ExperimentalScene = (function () {
                 var cdat = {
                     bottomLeft: [l, b ,0],
                     topRight: [r, t, 0],
-                    callback: mkCallbacker(glyphIdx)
+                    callback: keyboardArbiter.generateKeypressCallback(glyphIdx)
                 }
                 colliderplane.collisionBoxes.push(cdat);
                 var tx = FCUtil.renderTextToTexture(scene.gl, [{t: glyphset[glyphIdx]}], {canvasWidth: 64, canvasHeight: 64});
@@ -498,7 +577,7 @@ window.ExperimentalScene = (function () {
         
         var stickbead = new FCShapes.SimpleCuboid(
             null,
-            {w: 0.03, h:0.03, d:0.03},
+            {w: 0.07, h:0.07, d:0.07},
             null,
             {shaderLabel: 'diffuse', textureLabel: 'orange', label: 'stickbead'}
         );
@@ -507,7 +586,29 @@ window.ExperimentalScene = (function () {
         stickbead.behaviours.push(makeControllerRayProjector(scene, 1, [colliderplane]));
         scene.addObject(stickbead);
         
+        var stickstick = new FCBasicShapes.CylinderShape(null, {radius: 0.01, height:0.50}, null, {shaderLabel:'diffuse', textureLabel:'gold'});
+        stickstick.rotation = {x:270/DEG, y:0, z:0};
+        // stickstick.translation 
+        stickstick.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
+        scene.addObject(stickstick);
         
+        
+        /* KeyboardArbiter */
+        /* Kind of like a controller that joins a VRKeyboard and its backing store together.
+        /* The backing store can be a TextArea or something that (partially) implements the same API.
+        /* KeyboardArbiter is probably the thing responsible for generating the callbacks.
+        /* Perhaps backing stores can be switched in mid-flight? this would mean that we can re-use a keyboard for
+        /* multiple virtual text items.
+        /* We probably also want to have a way of arbiting text backing stores -> textured boards.
+        /* Does this do that??
+        /* So it's a 3-way thing? backing store -> keyboard -> display
+        */
+        
+        /* Really though, what is a keyboard but a collider plane with a bunch of callbacks.
+        /* So - accept a backing store and a display and be ready to generate a bunch of kb cb's.
+        */
+        
+        /* Option to have display be automatically generated, or at least automatically managed? */
         
         /* Boiler plate:
         /* THINGS HERE marker
