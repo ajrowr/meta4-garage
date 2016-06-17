@@ -173,7 +173,7 @@ window.ExperimentalScene = (function () {
         }
         
         
-        PlanarCollider.prototype.findRayCollision = function (testRayOrigin, testRayVec, debugObj) {
+        PlanarCollider.prototype.findRayCollision = function (testRayOrigin, testRayVec, ctxObj, debugObj) {
             var collider = this;
             
 /*            var rectBL = vec3.clone(c.rect.bottomLeft);                   */
@@ -294,7 +294,7 @@ window.ExperimentalScene = (function () {
                     && pointOfInterest <= 0) {
                          // console.log('yep');
                          if (cbox.callback) {
-                             cbox.callback(); /* TODO what to put in here? */
+                             cbox.callback(ctxObj); /* TODO what to put in here? */
                          }
                          return {idx: i, poi: pointOfInterest};
                     }
@@ -380,11 +380,12 @@ window.ExperimentalScene = (function () {
                         for (var i=0; i<colliders.length; i++) {
                             var collider = colliders[i];
                             // console.log(myPointerOrigin, myPointerVector);
-                            var d = collider.findRayCollision(myPointerOrigin, myPointerVector);
+                            var context = {gamepad: myGp};
+                            var d = collider.findRayCollision(myPointerOrigin, myPointerVector, context);
                             if (d) {
                                 // console.log(d, collider.collisionBoxes[d.idx]);
                                 
-                                myGp.vibrate(20); /* TODO find somewhere else for this to live! */
+                                // myGp.vibrate(20); /* TODO find somewhere else for this to live! */
                                 updateReadout('D', d.idx);
                             
                             }
@@ -433,11 +434,11 @@ window.ExperimentalScene = (function () {
         var mkCallbacker = function (idx) {
             var glyphs = glyphset;
             var s = callbackGlobalState;
-            return function () {
+            return function (ctx) {
                 var outGlyph = null;
                 var myGlyph = glyphs[idx];
                 var currentTime = Date.now();
-                if (myGlyph != s.currentGlyph || currentTime > s.pressedAt+500 ) {
+                if (myGlyph != s.currentGlyph || currentTime > s.pressedAt+200 ) {
                     outGlyph = myGlyph;
                     s.currentGlyph = myGlyph;
                     s.pressedAt = currentTime;
@@ -450,6 +451,9 @@ window.ExperimentalScene = (function () {
                     console.log(idx, outGlyph);
                     var elem = document.getElementById('output');
                     elem.value = elem.value + outGlyph;
+                    if (ctx.gamepad) {
+                        ctx.gamepad.vibrate(20);
+                    }
                     
                 }
             }
