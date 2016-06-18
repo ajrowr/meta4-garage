@@ -356,9 +356,46 @@ var Keyboard = function (lexicon, arbiter, pos, size, rotate, params) {
     var p = params || {};
     this.keyMargin = p.keyMargin || 0.007;
     this.colliderPlane = null;
+    
+    // this.keyCapCanvasSize = {w: 1024, h:1024};
+    this.glyphSpriteSize = {w: 1024, h:1024};
+    this.glyphSpriteCoords = [];
+    this.glyphSprite = null;
+    this.glyphWidth = 64;
         
 }
 Keyboard.prototype = Object.create(P.Drawable.prototype);
+
+Keyboard.prototype.buildGlyphSprite = function () {
+    if (this.glyphSprite) return this.glyphSprite;
+    var kb = this;
+    var keys = kb.lexicon.keys;
+    var textBlocks = [];
+    var spriteW = kb.glyphSpriteSize.w;
+    var glyphW = kb.glyphWidth;
+    var perRow = spriteW / glyphW;
+    for (var i=0; i<keys.length; i++) {
+        var pos = {x:((i+1)%perRow)*glyphW, y:(1+Math.floor(i/perRow))*glyphW};
+        textBlocks.push({text: keys[i].normal, fillStyle: 'white', font: '50px arial', pos:pos});
+        var u = pos.x/spriteW, v = pos.y/spriteW, ww = glyphW/spriteW;
+        kb.glyphSpriteCoords.push({u1:u, u2:u+ww, v1:v, v2:v+ww});
+    }
+    this.glyphSprite = FCUtil.makeTextTexture(kb.arbiter.scene.gl, textBlocks, this.glyphSpriteSize);
+    return this.glyphSprite;
+}
+
+// Keyboard.prototype.buildTexture = function (idx) {
+//     var kb = this;
+//     var keys = kb.lexicon.keys;
+//     var textBlocks = [];
+//     for (var i=0; i<keys.length; i++) {
+//         var kInf = kb.getKeyInfo(i);
+//         // var kDat =
+//         var x = kb.keyCapCanvasSize.w * kInf.u;
+//         var y = kb.keyCapCanvasSize.h * kInf.v;
+//         textBlocks.push({fillStyle: 'white', font: '30px arial', pos: {x:x, y:y}});
+//     }
+// }
 
 Keyboard.prototype.getKeyInfo = function (idx) {
     var kb = this;
@@ -368,14 +405,16 @@ Keyboard.prototype.getKeyInfo = function (idx) {
     var b = (mK.y * unitFactor) + kb.keyMargin;
     var r = l + (mK.w * unitFactor) - kb.keyMargin;
     var t = b + (mK.h * unitFactor) - kb.keyMargin;
-
+    var txCoords = kb.glyphSpriteCoords[idx] || {}; /* Slight chicken/egg here */
     return {
         l: l,
         b: b,
         r: r,
         t: t,
-        u: 0,
-        v: 0,
+        u1: txCoords.u1,
+        v1: txCoords.v1,
+        u2: txCoords.u2,
+        v2: txCoords.v2,
         glyph: ''
     };
 }
@@ -387,6 +426,7 @@ Keyboard.prototype.divulge = function () {
     var keys = kb.lexicon.keys;
     var unitFactor = this.scaleFactor;
     var margin = 0.007;
+    kb.buildGlyphSprite(); /* Generates the tex coords, among other things */
     for (var i=0; i<keys.length; i++) {
         var mK = keys[i];
         var kInf = kb.getKeyInfo(i);
@@ -398,9 +438,19 @@ Keyboard.prototype.divulge = function () {
         var B = P.mkVert(kInf.r, kInf.b, 0);
         var C = P.mkVert(kInf.r, kInf.t, 0);
         var D = P.mkVert(kInf.l, kInf.t, 0);
-        var u = 0, v = 0;
-        poly.add(A, P.tex.no, B, P.tex.no, C, P.tex.no);
-        poly.add(A, P.tex.no, C, P.tex.no, D, P.tex.no);
+        // var u = kInf.u, v = kInf.v;
+        
+        // poly.add(A, [0,0], B, [1,0], C, [1,1]);
+        // poly.add(A, [0,0], C, [1,1], D, [0,1]);
+
+        // var tA = [kInf.u1,kInf.v1], tB = [kInf.u2,kInf.v1], tC = [kInf.u2,kInf.v2], tD = [kInf.u1,kInf.v2];
+        var tA = [kInf.u1,kInf.v2], tB = [kInf.u2,kInf.v2], tC = [kInf.u2,kInf.v1], tD = [kInf.u1,kInf.v1];
+        poly.add(A, tA, B, tB, C, tC);
+        poly.add(A, tA, C, tC, D, tD);
+        console.log(tA, tB, tC, tD);
+
+        // poly.add(A, [kInf.u1,kInf.v1], B, [kInf.u2,kInf.v1], C, [kInf.u2,kInf.v2]);
+        // poly.add(A, [kInf.u1,kInf.v1], C, [kInf.u2,kInf.v2], D, [kInf.u1,kInf.v2]);
     }
     
     return {indices: poly.indices, vertices: poly.verts};
@@ -589,6 +639,7 @@ window.ExperimentalScene = (function () {
             {x:0, y:0, z: 3},
             {minX: -2, maxX: 2, minY: 1, maxY:3},
             {x:0, y: 180/DEG, z:0},
+            // {shaderLabel: 'diffuse', texture: buildGlyphSprite}
             {shaderLabel: 'diffuse', textureLabel: 'paleturquoise', segmentsX: 1, segmentsY: 1}
         );
         scene.addObject(displayBoard);
@@ -658,9 +709,11 @@ window.ExperimentalScene = (function () {
         var kb = new Keyboard(kblex, keyboardArbiter, kbinf.position, null, kbinf.orientation, {
             shaderLabel: 'diffuse', textureLabel: 'blue', label: 'kb2'
         });
-        kb.translation = {x:1.5, y:-0.5, z:-0.2};
+        kb.translation = {x:1.5, y:-0.5, z:-0.5};
         sceneColliders.push(kb.makePlanarCollider());
         scene.addObject(kb);
+        kb.texture = kb.buildGlyphSprite();
+        displayBoard.texture = kb.buildGlyphSprite();
         
         
         var makeDrumstick = function (gpIdx, beadTexLabel, stickTexLabel) {
