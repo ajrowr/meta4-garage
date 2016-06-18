@@ -283,7 +283,155 @@ var makeControllerRayProjector = function (scene, gpId, colliders) {
 
 
 
+/* Basically a lexicon of info used to build a keyboard.
+/* When a keyboard is constructing, it requests info from here for each key.
+/* Keep this as simple as possible and let the keyboard handle customisation. We're just here to provide keycaps, 
+/* meta-alternates, symbolic names, and grid coordinates.
+/* Note that these don't need to be in draw order or anything.
+*/
+var OrdinaryKeyboardLexicon = function () {
+    
+    this.keyCount = 0;
+    this.baseGlyphs = [];
+    
+    this.keys = [];
+    
+    var glyphrows = [
+        {
+            normal: 'zxcvbnm,./',
+            shifted: 'ZXCVBNM<>?'
+        },
+        {
+            normal: 'asdfghjkl;\'',
+            shifted: 'ASDFGHJKL:"'
+        },
+        {
+            normal: 'qwertyuiop[]',
+            shifted: 'QWERTYUIOP{}'
+        },
+        {
+            normal: '1234567890-=',
+            shifted: '!@#$%^&*()_+'
+        }
+    ];
+    
+    /* Do all the basic glyphs, ie the ones which are 2u wide and predictable */
+    var makeBasicGlyphs = function (keyset) {
+        var startAtX = 5;
+        var glyphWidth = 2;
+        var rowHeight = 2;
+        for (var r=0; r<glyphrows.length; r++) {
+            var myRow = glyphrows[r];
+            for (var c=0; c<myRow.normal.length; c++) {
+                keyset.push({
+                    x: startAtX + (-1*r) + (c*glyphWidth),
+                    y: 2+(r*2),
+                    w: glyphWidth,
+                    h: rowHeight,
+                    normal: myRow.normal[c],
+                    shifted: myRow.shifted[c],
+                    symbolicName: 'um.'
+                });
+            }
+        }
+    }
+    makeBasicGlyphs(this.keys);
+    
+}
 
+
+var P = FCPrimitives;
+/* Make a keyboard that is a subclass of Drawable (or can be used like it)
+/* And that can generate
+/* It will need to have its own special texture which incorporates the grid coords
+/* In Divulge it will need to make a key for each key in the lexicon.
+*/
+var Keyboard = function (lexicon, arbiter, pos, size, rotate, params) {
+    P.Drawable.call(this, pos, size, rotate, params);
+    size = size || {};
+    this.scaleFactor = size.scale || 0.1;
+    this.lexicon = lexicon;
+    this.arbiter = arbiter;
+    
+    var p = params || {};
+    this.keyMargin = p.keyMargin || 0.007;
+    this.colliderPlane = null;
+        
+}
+Keyboard.prototype = Object.create(P.Drawable.prototype);
+
+Keyboard.prototype.getKeyInfo = function (idx) {
+    var kb = this;
+    var unitFactor = this.scaleFactor;
+    var mK = kb.lexicon.keys[idx];
+    var l = (mK.x * unitFactor) + kb.keyMargin;
+    var b = (mK.y * unitFactor) + kb.keyMargin;
+    var r = l + (mK.w * unitFactor) - kb.keyMargin;
+    var t = b + (mK.h * unitFactor) - kb.keyMargin;
+
+    return {
+        l: l,
+        b: b,
+        r: r,
+        t: t,
+        u: 0,
+        v: 0,
+        glyph: ''
+    };
+}
+
+Keyboard.prototype.divulge = function () {
+    var kb = this;
+    var poly = new P.Poly();
+    poly.normal(0,0,1);
+    var keys = kb.lexicon.keys;
+    var unitFactor = this.scaleFactor;
+    var margin = 0.007;
+    for (var i=0; i<keys.length; i++) {
+        var mK = keys[i];
+        var kInf = kb.getKeyInfo(i);
+        // var l = (mK.x * unitFactor) + margin;
+        // var b = (mK.y * unitFactor) + margin;
+        // var r = l + (mK.w * unitFactor) - margin;
+        // var t = b + (mK.h * unitFactor) - margin;
+        var A = P.mkVert(kInf.l, kInf.b, 0);
+        var B = P.mkVert(kInf.r, kInf.b, 0);
+        var C = P.mkVert(kInf.r, kInf.t, 0);
+        var D = P.mkVert(kInf.l, kInf.t, 0);
+        var u = 0, v = 0;
+        poly.add(A, P.tex.no, B, P.tex.no, C, P.tex.no);
+        poly.add(A, P.tex.no, C, P.tex.no, D, P.tex.no);
+    }
+    
+    return {indices: poly.indices, vertices: poly.verts};
+}
+
+Keyboard.prototype.makePlanarCollider = function () {
+    var kb = this;
+    kb.colliderPlane = new PlanarCollider(
+        {
+            planeNormal: [0, 0, -1], /* Untransformed */
+            pointOnPlane: [0, 0, 0] /* This point gets transformed into the plane space so it's unusual to change this  */
+        },
+        this,
+        null
+    );
+    
+    for (var i=0; i<kb.lexicon.keys.length; i++) {
+        var keyInf = kb.getKeyInfo(i);
+        var cb = function () {console.log(i);};
+        var cdat = {
+            bottomLeft: [keyInf.l, keyInf.b ,0],
+            topRight: [keyInf.r, keyInf.t, 0],
+            callback: kb.arbiter.generateKeypressCallback(i)
+        }
+        this.colliderPlane.collisionBoxes.push(cdat);
+        
+    }
+    return this.colliderPlane;
+    
+    
+}
 
 
 window.ExperimentalScene = (function () {
@@ -436,30 +584,6 @@ window.ExperimentalScene = (function () {
         ctrl1.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
         scene.addObject(ctrl1);
         
-
-
-        
-        /* Make our collider plane */
-        /* Even though it's a renderable object, it's invisible. We're pretty much just using it as an anchor for the others */
-        var cRows = 5, cCols = 15;
-        var kbplane = new FCBasicShapes.WallShape(
-            {x: 0, y:1, z: 2},
-            {minX: -1, maxX: 1.5, minY:-0.5, maxY: 0.5},
-            {x:55/DEG, y:180/DEG, z:0},
-            {shaderLabel: 'diffuse', textureLabel: null, label: 'kbplane', segmentsX: cCols, segmentsY:cRows}
-        
-        );
-        scene.addObject(kbplane);
-        
-        var colliderplane = new PlanarCollider(
-            {
-                planeNormal: [0, 0, -1], /* Untransformed */
-                pointOnPlane: [0, 0, 0] /* This point gets transformed into the plane space so it's unusual to change this  */
-            },
-            kbplane,
-            null
-        );
-        window.cplane = colliderplane;
         
         var displayBoard = new FCBasicShapes.WallShape(
             {x:0, y:0, z: 3},
@@ -468,33 +592,76 @@ window.ExperimentalScene = (function () {
             {shaderLabel: 'diffuse', textureLabel: 'paleturquoise', segmentsX: 1, segmentsY: 1}
         );
         scene.addObject(displayBoard);
-        
         var keyboardArbiter = new KeyboardArbiter(scene, document.getElementById('output'), displayBoard, null);
         
-        /* Set up kb segments */
-        var segW = (kbplane.size.maxX - kbplane.size.minX)/cCols;
-        var segH = (kbplane.size.maxY - kbplane.size.minY)/cRows;
-        for (var i=0; i<cCols; i++) {
-            for (var j=0; j<cRows; j++) {
-                var l = kbplane.size.minX + (i*segW) + (j*-0.06) + 0.01;
-                var r = l+segW - 0.01;
-                var b = (kbplane.size.minY + (j*segH)) + 0.01;
-                var t = (b+segH) - 0.01;
-                var glyphIdx = i*cRows + j;
-                var cdat = {
-                    bottomLeft: [l, b ,0],
-                    topRight: [r, t, 0],
-                    callback: keyboardArbiter.generateKeypressCallback(glyphIdx)
+        var sceneColliders = [];
+        
+        var kbinf = {
+            position: {x: 0, y:1, z: 2},
+            orientation: {x:55/DEG, y:180/DEG, z:0}
+        };
+        var makeKeyboardV1 = function () {
+            /* Make our collider plane */
+            /* Even though it's a renderable object, it's invisible. We're pretty much just using it as an anchor for the others */
+            var cRows = 5, cCols = 15;
+            var kbplane = new FCBasicShapes.WallShape(
+                kbinf.position,
+                {minX: -1, maxX: 1.5, minY:-0.5, maxY: 0.5},
+                kbinf.orientation,
+                {shaderLabel: 'diffuse', textureLabel: null, label: 'kbplane', segmentsX: cCols, segmentsY:cRows}
+        
+            );
+            scene.addObject(kbplane);
+        
+            var colliderplane = new PlanarCollider(
+                {
+                    planeNormal: [0, 0, -1], /* Untransformed */
+                    pointOnPlane: [0, 0, 0] /* This point gets transformed into the plane space so it's unusual to change this  */
+                },
+                kbplane,
+                null
+            );
+            // window.cplane = colliderplane;
+            sceneColliders.push(colliderplane);
+        
+            /* Set up kb segments */
+            var segW = (kbplane.size.maxX - kbplane.size.minX)/cCols;
+            var segH = (kbplane.size.maxY - kbplane.size.minY)/cRows;
+            for (var i=0; i<cCols; i++) {
+                for (var j=0; j<cRows; j++) {
+                    var l = kbplane.size.minX + (i*segW) + (j*-0.06) + 0.01;
+                    var r = l+segW - 0.01;
+                    var b = (kbplane.size.minY + (j*segH)) + 0.01;
+                    var t = (b+segH) - 0.01;
+                    var glyphIdx = i*cRows + j;
+                    var cdat = {
+                        bottomLeft: [l, b ,0],
+                        topRight: [r, t, 0],
+                        callback: keyboardArbiter.generateKeypressCallback(glyphIdx)
+                    }
+                    colliderplane.collisionBoxes.push(cdat);
+                    var tx = FCUtil.renderTextToTexture(scene.gl, [{t: keyboardArbiter.glyphs[glyphIdx]}], {canvasWidth: 64, canvasHeight: 64});
+                    var keyCap = new FCBasicShapes.WallShape(null, {minX: l, minY: b, maxX: r, maxY: t}, null, {shaderLabel: 'diffuse', texture: tx, segmentsX:1, segmentsY:1});
+                    keyCap.matrix = kbplane.transformationMatrix();
+                    scene.addObject(keyCap);
+                    // console.log(cdat);
                 }
-                colliderplane.collisionBoxes.push(cdat);
-                var tx = FCUtil.renderTextToTexture(scene.gl, [{t: keyboardArbiter.glyphs[glyphIdx]}], {canvasWidth: 64, canvasHeight: 64});
-                var keyCap = new FCBasicShapes.WallShape(null, {minX: l, minY: b, maxX: r, maxY: t}, null, {shaderLabel: 'diffuse', texture: tx, segmentsX:1, segmentsY:1});
-                keyCap.matrix = kbplane.transformationMatrix();
-                scene.addObject(keyCap);
-                // console.log(cdat);
-            }
             
+            }
         }
+        // makeKeyboardV1();
+        
+        
+        // colliders.push(collider)
+        
+        var kblex = new OrdinaryKeyboardLexicon();
+        var kb = new Keyboard(kblex, keyboardArbiter, kbinf.position, null, kbinf.orientation, {
+            shaderLabel: 'diffuse', textureLabel: 'blue', label: 'kb2'
+        });
+        kb.translation = {x:1.5, y:-0.5, z:-0.2};
+        sceneColliders.push(kb.makePlanarCollider());
+        scene.addObject(kb);
+        
         
         var makeDrumstick = function (gpIdx, beadTexLabel, stickTexLabel) {
             var stickbead = new FCShapes.SimpleCuboid(
@@ -505,7 +672,7 @@ window.ExperimentalScene = (function () {
             );
             stickbead.translation = {x:0, y:0, z:-0.55};
             stickbead.behaviours.push(FCUtil.makeGamepadTracker(scene, gpIdx, null));
-            stickbead.behaviours.push(makeControllerRayProjector(scene, gpIdx, [colliderplane]));
+            stickbead.behaviours.push(makeControllerRayProjector(scene, gpIdx, sceneColliders));
             scene.addObject(stickbead);
         
             var stickstick = new FCBasicShapes.CylinderShape(null, {radius: 0.01, height:0.53}, null, {shaderLabel:'diffuse', textureLabel:stickTexLabel||'gold', label:'drumstick'+gpIdx});
