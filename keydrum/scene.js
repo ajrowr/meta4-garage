@@ -495,23 +495,28 @@ window.ExperimentalScene = (function () {
             }
             
         }
-                
-        var stickbead = new FCShapes.SimpleCuboid(
-            null,
-            {w: 0.07, h:0.07, d:0.07},
-            null,
-            {shaderLabel: 'diffuse', textureLabel: 'orange', label: 'stickbead'}
-        );
-        stickbead.translation = {x:0, y:0, z:-0.55};
-        stickbead.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
-        stickbead.behaviours.push(makeControllerRayProjector(scene, 1, [colliderplane]));
-        scene.addObject(stickbead);
         
-        var stickstick = new FCBasicShapes.CylinderShape(null, {radius: 0.01, height:0.53}, null, {shaderLabel:'diffuse', textureLabel:'gold', label:'stickstick'});
-        stickstick.rotation = {x:273/DEG, y:0, z:0};
-        // stickstick.translation 
-        stickstick.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
-        scene.addObject(stickstick);
+        var makeDrumstick = function (gpIdx, beadTexLabel, stickTexLabel) {
+            var stickbead = new FCShapes.SimpleCuboid(
+                null,
+                {w: 0.07, h:0.07, d:0.07},
+                null,
+                {shaderLabel: 'diffuse', textureLabel: beadTexLabel||'orange', label: 'drumstickBead'+gpIdx}
+            );
+            stickbead.translation = {x:0, y:0, z:-0.55};
+            stickbead.behaviours.push(FCUtil.makeGamepadTracker(scene, gpIdx, null));
+            stickbead.behaviours.push(makeControllerRayProjector(scene, gpIdx, [colliderplane]));
+            scene.addObject(stickbead);
+        
+            var stickstick = new FCBasicShapes.CylinderShape(null, {radius: 0.01, height:0.53}, null, {shaderLabel:'diffuse', textureLabel:stickTexLabel||'gold', label:'drumstick'+gpIdx});
+            stickstick.rotation = {x:273/DEG, y:0, z:0};
+            stickstick.behaviours.push(FCUtil.makeGamepadTracker(scene, gpIdx, null));
+            scene.addObject(stickstick);
+            
+        }
+        
+        makeDrumstick(0, 'green');
+        makeDrumstick(1, 'steelblue');
         
         
         /* KeyboardArbiter */
