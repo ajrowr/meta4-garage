@@ -373,12 +373,21 @@ Keyboard.prototype.buildGlyphSprite = function () {
     var textBlocks = [];
     var spriteW = kb.glyphSpriteSize.w;
     var glyphW = kb.glyphWidth;
+    var glyphH = glyphW;
     var perRow = spriteW / glyphW;
     for (var i=0; i<keys.length; i++) {
-        var pos = {x:((i+1)%perRow)*glyphW, y:(1+Math.floor(i/perRow))*glyphW};
-        textBlocks.push({text: keys[i].normal, fillStyle: 'white', font: '50px arial', pos:pos});
+        // var pos = {x:5+((i+1)%perRow)*glyphW, y:5+(1+Math.floor(i/perRow))*glyphW};
+        var gridX = i % perRow, gridY = Math.floor(i/perRow);
+        // console.log(gridX, gridY);
+        var capBounds = {l: gridX*glyphW, r: (gridX+1)*glyphW, t: gridY*glyphH, b: (gridY+1)*glyphH};
+        var pos = {x: 10 + capBounds.l, y: 55 + capBounds.t}; /* pos of baseline */
+        textBlocks.push({text: keys[i].normal, fillStyle: 'white', font: '40px arial', pos:pos});
         var u = pos.x/spriteW, v = pos.y/spriteW, ww = glyphW/spriteW;
-        kb.glyphSpriteCoords.push({u1:u, u2:u+ww, v1:v, v2:v+ww});
+        kb.glyphSpriteCoords.push({
+            u1:capBounds.l/spriteW, u2:capBounds.r/spriteW, 
+            v1:capBounds.b/spriteW, v2:capBounds.t/spriteW, 
+            glyph:keys[i].normal
+        });
     }
     this.glyphSprite = FCUtil.makeTextTexture(kb.arbiter.scene.gl, textBlocks, this.glyphSpriteSize);
     return this.glyphSprite;
@@ -397,6 +406,7 @@ Keyboard.prototype.buildGlyphSprite = function () {
 //     }
 // }
 
+/* getKeyInfo is used to build the collider as well as the poly map */
 Keyboard.prototype.getKeyInfo = function (idx) {
     var kb = this;
     var unitFactor = this.scaleFactor;
@@ -443,11 +453,11 @@ Keyboard.prototype.divulge = function () {
         // poly.add(A, [0,0], B, [1,0], C, [1,1]);
         // poly.add(A, [0,0], C, [1,1], D, [0,1]);
 
-        // var tA = [kInf.u1,kInf.v1], tB = [kInf.u2,kInf.v1], tC = [kInf.u2,kInf.v2], tD = [kInf.u1,kInf.v2];
-        var tA = [kInf.u1,kInf.v2], tB = [kInf.u2,kInf.v2], tC = [kInf.u2,kInf.v1], tD = [kInf.u1,kInf.v1];
+        var tA = [kInf.u1,kInf.v1], tB = [kInf.u2,kInf.v1], tC = [kInf.u2,kInf.v2], tD = [kInf.u1,kInf.v2];
+        // var tA = [kInf.u1,kInf.v2], tB = [kInf.u2,kInf.v2], tC = [kInf.u2,kInf.v1], tD = [kInf.u1,kInf.v1];
         poly.add(A, tA, B, tB, C, tC);
         poly.add(A, tA, C, tC, D, tD);
-        console.log(tA, tB, tC, tD);
+        // console.log(tA, tB, tC, tD);
 
         // poly.add(A, [kInf.u1,kInf.v1], B, [kInf.u2,kInf.v1], C, [kInf.u2,kInf.v2]);
         // poly.add(A, [kInf.u1,kInf.v1], C, [kInf.u2,kInf.v2], D, [kInf.u1,kInf.v2]);
@@ -710,6 +720,12 @@ window.ExperimentalScene = (function () {
             shaderLabel: 'diffuse', textureLabel: 'blue', label: 'kb2'
         });
         kb.translation = {x:1.5, y:-0.5, z:-0.5};
+        var glyphes = [];
+        for (var i=0; i<kblex.keys.length; i++) {
+            var k = kblex.keys[i];
+            glyphes.push(k.normal);
+        }
+        keyboardArbiter.glyphs = glyphes; /* TODO ugh this is so confusing. FIX */
         sceneColliders.push(kb.makePlanarCollider());
         scene.addObject(kb);
         kb.texture = kb.buildGlyphSprite();
