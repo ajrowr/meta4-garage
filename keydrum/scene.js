@@ -24,10 +24,10 @@ Once all this is done we are ready to accept events.
 /* So much room for improvement.
 
 Blatant issues:
-- Action at a distance should be determined by the ray projector, not the collider.
 - Having an individual drawable for every single keycap is just wrong and is a *serious* performance concern.
 - Having to use an invisible keyplane so that everything else can borrow its matrix seems silly.
 
+- Probably want to change to a different texture unit for re-rendering textures!
 
 - Also we need to make sure we have a generalised solution for collision management, preferably in relation to
   drawables.
@@ -85,13 +85,8 @@ KeyboardArbiter.prototype.generateKeypressCallback = function (keyIdx) {
                 s.currentGlyph = myGlyph;
                 s.pressedAt = currentTime;
             }
-            // if (!s.pressedAt) {
-            //     s.pressedAt()
-            // }
-            // console.log(idx);
             if (outGlyph) {
                 console.log(keyIdx, outGlyph);
-                // var elem = document.getElementById('output');
                 var elem = arbiter.backingStore;
                 elem.value = elem.value + outGlyph;
                 if (ctx.gamepad) {
@@ -99,12 +94,6 @@ KeyboardArbiter.prototype.generateKeypressCallback = function (keyIdx) {
                 }
                 
             }
-        // }
-        
-        
-        //
-        //
-        // arbiter.backingStore.value += arbiter.glyphs[keyIdx];
         console.log(keyIdx);
         arbiter.updateDisplay();
     }
@@ -121,7 +110,6 @@ KeyboardArbiter.prototype.generateKeypressCallback = function (keyIdx) {
 /* transformations on itself.
 */
 var PlanarCollider = function (planeDescription, associatedObject, params) {
-    // var collider = this;
     var p = params || {};
     var desc = planeDescription;
     this.planeNormal = vec3.fromValues(desc.planeNormal[0], desc.planeNormal[1], desc.planeNormal[2]);
@@ -132,8 +120,6 @@ var PlanarCollider = function (planeDescription, associatedObject, params) {
     this.features = []; /* List of things to be tested in the plane */
     this.collisionBoxes = [];
 }
-
-
 
 PlanarCollider.prototype.findRayCollision = function (testRayOrigin, testRayVec, bracketDist, ctxObj, debugObj) {
     var collider = this;
@@ -222,8 +208,6 @@ PlanarCollider.prototype.findRayCollision = function (testRayOrigin, testRayVec,
                  }
                  return {idx: i, poi: pointOfInterest};
             }
-            
-            
         }
         
         /* DEBUG */
@@ -236,35 +220,9 @@ PlanarCollider.prototype.findRayCollision = function (testRayOrigin, testRayVec,
                 collisionPoint: collisionPoint
             };
         }
-
-        // if ((colLeft <= coll[0] && coll[0] <= colRght)
-        // && (colBtm  <= coll[1] && coll[1] <= colTop)
-        // && (colFrnt <= coll[2] && coll[2] <= colBack)
-        // && pointOfInterest <= 0
-        // ) {
-        //      // console.log('yep');
-        //      return pointOfInterest;
-        // }
-        // else {
-        //     // console.log('nope');
-        //     return null;
-        // }
     }
     
 }
-
-
-/* Tests a ray against this plane. 
-*/
-// PlanarCollider.prototype.testRay = function (ray) {
-//
-// }
-
-
-
-
-
-
 
 
 
@@ -312,11 +270,7 @@ var makeControllerRayProjector = function (scene, gpId, colliders) {
                     var context = {gamepad: myGp};
                     var d = collider.findRayCollision(myPointerOrigin, myPointerVector, {min:-0.6, max:-0.5}, context);
                     if (d) {
-                        // console.log(d, collider.collisionBoxes[d.idx]);
-                        
-                        // myGp.vibrate(20); /* TODO find somewhere else for this to live! */
-                        updateReadout('D', d.idx);
-                    
+                        // updateReadout('D', d.idx);
                     }
                 
                 }
@@ -503,50 +457,9 @@ window.ExperimentalScene = (function () {
                 pointOnPlane: [0, 0, 0] /* This point gets transformed into the plane space so it's unusual to change this  */
             },
             kbplane,
-            // {
-            //     bracketDistanceMin: -0.6,
-            //     bracketDistanceMax: -0.5
-            // }
             null
         );
         window.cplane = colliderplane;
-        
-        // var glyphset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        // var glyphset = 'abcdefghijklmnopqrst`1234567890-=--JKLMNOPQRSTUVWXYZ';
-
-
-        // var glyphset = 'abcd` zaq1 xsw2 cde3 vfr4 bgt5-nhy6-mju7-,ki8-.lo9-/;p0--------------------------';
-        // var callbackGlobalState = {
-        //     currentGlyph: null,
-        //     pressedAt: null
-        // };
-        // var mkCallbacker = function (idx) {
-        //     var glyphs = glyphset;
-        //     var s = callbackGlobalState;
-        //     return function (ctx) {
-        //         var outGlyph = null;
-        //         var myGlyph = glyphs[idx];
-        //         var currentTime = Date.now();
-        //         if (myGlyph != s.currentGlyph || currentTime > s.pressedAt+200 ) {
-        //             outGlyph = myGlyph;
-        //             s.currentGlyph = myGlyph;
-        //             s.pressedAt = currentTime;
-        //         }
-        //         // if (!s.pressedAt) {
-        //         //     s.pressedAt()
-        //         // }
-        //         // console.log(idx);
-        //         if (outGlyph) {
-        //             console.log(idx, outGlyph);
-        //             var elem = document.getElementById('output');
-        //             elem.value = elem.value + outGlyph;
-        //             if (ctx.gamepad) {
-        //                 ctx.gamepad.vibrate(20);
-        //             }
-        //
-        //         }
-        //     }
-        // }
         
         var displayBoard = new FCBasicShapes.WallShape(
             {x:0, y:0, z: 3},
@@ -556,10 +469,7 @@ window.ExperimentalScene = (function () {
         );
         scene.addObject(displayBoard);
         
-        
-        
         var keyboardArbiter = new KeyboardArbiter(scene, document.getElementById('output'), displayBoard, null);
-        
         
         /* Set up kb segments */
         var segW = (kbplane.size.maxX - kbplane.size.minX)/cCols;
@@ -585,19 +495,7 @@ window.ExperimentalScene = (function () {
             }
             
         }
-        
-        // colliderplane.collisionBoxes.push({bottomLeft:[-1, -0.5, 0], topRight:[0, 0, 0], callback: null});
-        
-        
-        var statusCube = new FCShapes.SimpleCuboid(
-            null,
-            {w: 0.14, h:0.14, d:0.04},
-            null,
-            {shaderLabel: 'diffuse', textureLabel: 'red', label:'statusCube'}
-        );
-        scene.addObject(statusCube);
-        
-        
+                
         var stickbead = new FCShapes.SimpleCuboid(
             null,
             {w: 0.07, h:0.07, d:0.07},
@@ -609,8 +507,8 @@ window.ExperimentalScene = (function () {
         stickbead.behaviours.push(makeControllerRayProjector(scene, 1, [colliderplane]));
         scene.addObject(stickbead);
         
-        var stickstick = new FCBasicShapes.CylinderShape(null, {radius: 0.01, height:0.50}, null, {shaderLabel:'diffuse', textureLabel:'gold'});
-        stickstick.rotation = {x:270/DEG, y:0, z:0};
+        var stickstick = new FCBasicShapes.CylinderShape(null, {radius: 0.01, height:0.53}, null, {shaderLabel:'diffuse', textureLabel:'gold', label:'stickstick'});
+        stickstick.rotation = {x:273/DEG, y:0, z:0};
         // stickstick.translation 
         stickstick.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, null));
         scene.addObject(stickstick);
