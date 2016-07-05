@@ -24,7 +24,7 @@ window.ExperimentalScene = (function () {
         FCScene.call(this);
         
         this.objConfigs = {};
-        this.latest = null;
+        this.current = null;
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -152,7 +152,7 @@ window.ExperimentalScene = (function () {
                     // ...
                 }
                 scene.addObject(o);
-                scene.latest = o;
+                scene.current = o;
                 resolve(o);
             });
             
@@ -216,12 +216,41 @@ window.ExperimentalScene = (function () {
         addCfg('nude-almost', 'obj/almost_nude.obj', {scale:0.01, ry:2.9});
                 
         /* Floor */
-        scene.addObject(new FCShapes.WallShape(
+        var floor = new FCShapes.WallShape(
             {x: 0, z: 0, y: -0.02},
             {minX: -20, maxX: 20, minY: -20, maxY: 20},
             {x:270/DEG, y:0/DEG, z:0/DEG},
             {label: 'floor', textureLabel: 'concrete01', shaderLabel: 'diffuse', segmentsX: 10, segmentsY: 10}
-        ));
+        );
+        /* Quirk here - we have to give the plane normal of the thing we're aligned with BEFORE it is rotated into place? */
+        var floorCollider = new FCUtil.PlanarCollider({planeNormal:[0, 0, -1], pointOnPlane:[0,0,0]}, floor, null);
+        floorCollider.callback = function (dat) {
+            // console.log(dat);
+            updateReadout('A', dat.collisionPoint[0]);
+            updateReadout('B', dat.collisionPoint[1]);
+            updateReadout('C', dat.collisionPoint[2]);
+            var c = scene.getObjectByLabel('cursor');
+            c.pos.x = dat.collisionPoint[0];
+            c.pos.y = dat.collisionPoint[1];
+            c.pos.z = dat.collisionPoint[2];
+        }
+        scene.addObject(floor);
+        
+        
+        /* Cursor */
+        var cursor = new FCShapes.SimpleCuboid(
+            // scene.cursorOrigin,
+            {x:0, y:0, z:0},
+            {w: 0.3, h:0.3, d:0.3},
+            null,
+            {label: 'cursor', shaderLabel: 'diffuse', texture: scene.addTextureFromColor({r:0.6, g:0.6, b: 0.6})}
+        );
+        // cursor.behaviours.push(function (drawable, timePoint) {
+        //     drawable.currentOrientation = {x:0.0, y:Math.PI*2*(timePoint/7000), z:0.0};
+        // });
+        scene.addObject(cursor);
+        
+        
         
         /* Raft */
         var stageExtent = {
@@ -250,20 +279,31 @@ window.ExperimentalScene = (function () {
         var buttonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
             if (btnIdx == '0' && btnStatus == 'held') {
                 if (sector == 'n') {
-                    scene.latest.scaleFactor *= 1.005;
+                    scene.current.scaleFactor *= 1.005;
                 }
                 else if (sector == 's') {
-                    scene.latest.scaleFactor *= 0.995;
+                    scene.current.scaleFactor *= 0.995;
                 }
                 else if (sector == 'w') {
-                    scene.latest.orientation.y += 0.6/DEG;
+                    scene.current.orientation.y += 0.6/DEG;
                 }
                 else if (sector == 'e') {
-                    scene.latest.orientation.y -= 0.6/DEG;
+                    scene.current.orientation.y -= 0.6/DEG;
                 }
+            }
+            else if (btnIdx == '1' && btnStatus=='pressed'){
+                console.log(btnIdx);
+                var curs = scene.getObjectByLabel('cursor');
+                scene.current.pos = {
+                    x: curs.pos.x,
+                    y: scene.current.pos.y,
+                    z: curs.pos.z
+                };
             }
             // console.log(btnIdx, btnStatus, sector);
         }
+        
+        // var rayProjector = FCUtil.makeControllerRayProjector(scene, gpIdx, sceneColliders)
         
         var ctrl0 = new LoaderObj(
             scene.meshes['ctrl'],
@@ -279,6 +319,7 @@ window.ExperimentalScene = (function () {
         ctrl0.translation = ctrlInfo.translate;
         ctrl0.rotation = ctrlInfo.rotate;
         ctrl0.behaviours.push(FCUtil.makeGamepadTracker(scene, 0, buttonHandler));
+        ctrl0.behaviours.push(FCUtil.makeControllerRayProjector(scene, 0, [floorCollider]));
         scene.addObject(ctrl0);
         
         var ctrl1 = new LoaderObj(
@@ -295,6 +336,7 @@ window.ExperimentalScene = (function () {
         ctrl1.translation = ctrlInfo.translate;
         ctrl1.rotation = ctrlInfo.rotate;
         ctrl1.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, buttonHandler));
+        // ctrl1.behaviours.push(FCUtil.makeControllerRayProjector(scene, 1, [floorCollider]));
         scene.addObject(ctrl1);
         
     }
