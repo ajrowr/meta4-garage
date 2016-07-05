@@ -275,6 +275,11 @@ window.ExperimentalScene = (function () {
             blueColor: scene.addTextureFromColor({r:0.2, g:0.6, b:0.9})
         };
         
+        var teleportUserToCursor = function () {
+            var curs = scene.getObjectByLabel('cursor');
+            scene.moveRaftAndPlayerTo(curs.pos);
+        }
+        
         
         var buttonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
             if (btnIdx == '0' && btnStatus == 'held') {
@@ -292,7 +297,6 @@ window.ExperimentalScene = (function () {
                 }
             }
             else if (btnIdx == '1' && btnStatus=='pressed'){
-                console.log(btnIdx);
                 var curs = scene.getObjectByLabel('cursor');
                 scene.current.pos = {
                     x: curs.pos.x,
@@ -300,7 +304,12 @@ window.ExperimentalScene = (function () {
                     z: curs.pos.z
                 };
             }
-            // console.log(btnIdx, btnStatus, sector);
+            else if (btnIdx == '2' && btnStatus == 'pressed') {
+                teleportUserToCursor();
+            }
+            else if (btnStatus == 'pressed') {
+                console.log('Button idx', btnIdx, 'pressed.');
+            }
         }
         
         // var rayProjector = FCUtil.makeControllerRayProjector(scene, gpIdx, sceneColliders)
