@@ -32,6 +32,10 @@ Blatant issues:
 - Also we need to make sure we have a generalised solution for collision management, preferably in relation to
   drawables.
 
+- BUT THE WORST THING IS that glitch every time we render a canvas to a texture. It's completely ruining immersion
+anytime text gets updated. I don't think it's in our realm of fixability so we'll have to find another way to 
+display text for now.
+
 
 Solutions?
 

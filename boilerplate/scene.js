@@ -18,10 +18,30 @@ window.ExperimentalScene = (function () {
             ];
             
             var texColors = [
-                {hex: '#4169e1', label: 'royalblue'}
+                {hex: '#000000', label: 'black'},
+                {hex: '#00007f', label: 'navy'},
+                {hex: '#0000ff', label: 'blue'},
+                {hex: '#007f00', label: 'green'},
+                {hex: '#007f7f', label: 'teal'},
+                {hex: '#00ff00', label: 'lime'},
+                {hex: '#00ff7f', label: 'springgreen'},
+                {hex: '#00ffff', label: 'cyan'},
+                {hex: '#00ffff', label: 'aqua'},
+                {hex: '#191970', label: 'dodgerblue'},
+                {hex: '#20b2aa', label: 'lightseagreen'},
+                {hex: '#228b22', label: 'forestgreen'},
+                {hex: '#2e8b57', label: 'seagreen'},
+                {hex: '#4169e1', label: 'royalblue'},
+                {hex: '#ff0000', label: 'red'},
+                {hex: '#ff00ff', label: 'magenta'},
+                {hex: '#ffa500', label: 'orange'},
+                {hex: '#ffff00', label: 'yellow'},
+                
                 // {hex: '', label: ''},
                 // {hex: '', label: ''},
-                // {hex: '', label: ''}
+                // {hex: '', label: ''},
+                // {hex: '', label: ''},
+                {hex: '#ffffff', label: 'white'}
             ]
         
             var models = [
