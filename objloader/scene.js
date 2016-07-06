@@ -25,9 +25,122 @@ window.ExperimentalScene = (function () {
         
         this.objConfigs = {};
         this.current = null;
+        
+        this.modelGroups = {
+            general: {
+                items: []
+            },
+            nudes: {
+                items: []
+            }
+        };
+        this.uiMode = -1;
+        this.uiState = {};
+        
+        this.previewModel = null;
+        this.previewModelIdx = 0;
+        
+        this.templatesList = [];
+        
+        this.uiModeButtonHandler = function () {};
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
+    
+    Scene.prototype.incrementUIMode = function () {
+        var scene = this;
+        var DEG=360/(2*Math.PI);
+        var RAD=1;
+        
+        scene.uiMode += 1;
+        scene.uiMode %= 3;
+        
+        scene.removeObjectsInGroup('uiChrome');
+        
+        console.log('Switching UI to mode', scene.uiMode);
+        
+        /* Choosing models */
+        /* Trackpad left/right to select */
+        /* Trigger to place */
+        if (scene.uiMode == 0) {
+            scene.showPreviewModel(scene.previewModelIdx);
+            scene.uiModeButtonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
+                if (btnIdx == '0' && btnStatus == 'pressed') {
+                    scene.previewModelIdx = (scene.previewModelIdx + 1) % scene.templatesList.length;
+                    scene.showPreviewModel(scene.previewModelIdx)
+                }
+                else if (btnIdx == '1' && btnStatus == 'pressed') {
+                    var curs = scene.getObjectByLabel('cursor');
+                    // var newpos = {
+                    //     x: curs.pos.x,
+                    //     y: scene.current.pos.y,
+                    //     z: curs.pos.z
+                    // };
+                    var tmpl = scene.templatesList[scene.previewModelIdx];
+                    var tmplCfg = scene.objConfigs[tmpl.base];
+                    var scaleFactor = tmplCfg.params.scale;
+                    scene.quickAdd(tmpl.base, {scale:scaleFactor, x:curs.pos.x, z: curs.pos.z, y:tmplCfg.params.y}, null, false)
+                    .then(function (obj) {
+                        scene.addObject(obj);
+                        scene.current = obj;
+                    })
+                }
+            }
+        }
+        /* Size, pos and rotate */
+        /* Trackpad left/right to rotate, up/down to scale */
+        /* Trigger to reposition */
+        else if (scene.uiMode == 1) {
+            
+            
+            scene.uiModeButtonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
+                if (btnIdx == '0' && btnStatus == 'held') {
+                    if (sector == 'n') {
+                        scene.current.scaleFactor *= 1.005;
+                    }
+                    else if (sector == 's') {
+                        scene.current.scaleFactor *= 0.995;
+                    }
+                    else if (sector == 'w') {
+                        scene.current.orientation.y += 0.6/DEG;
+                    }
+                    else if (sector == 'e') {
+                        scene.current.orientation.y -= 0.6/DEG;
+                    }
+                }
+                else if (btnIdx == '1' && btnStatus=='pressed'){
+                    var curs = scene.getObjectByLabel('cursor');
+                    scene.current.pos = {
+                        x: curs.pos.x,
+                        y: scene.current.pos.y,
+                        z: curs.pos.z
+                    };
+                }
+                else if (btnIdx == '2' && btnStatus == 'pressed') {
+                    teleportUserToCursor();
+                }
+                else if (btnStatus == 'pressed') {
+                    console.log('Button idx', btnIdx, 'pressed.');
+                }
+            }
+            
+            
+            
+        }
+        /* Colour */
+        /* Trackpad left/right to choose colour */
+        /* Trigger to paint */
+        else if (scene.uiMode == 2) {
+            
+            
+            scene.uiModeButtonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
+                
+            }
+            
+        }
+        
+
+    }
     
     Scene.prototype.setupPrereqs = function () {
         var scene = this;
@@ -123,19 +236,27 @@ window.ExperimentalScene = (function () {
     Scene.prototype.loadObj = function (path, label) {
         var scene = this;
         return new Promise(function (resolve, reject) {
-            OBJ.downloadMeshes({
-                obj: path
-            }, function (objs) {
-                OBJ.initMeshBuffers(scene.gl, objs.obj);
-                scene.meshes[label] = objs.obj;
-                resolve(objs.obj);
-            })
+            if (scene.meshes[label]) {
+                resolve(scene.meshes[label]);
+            }
+            else {
+                OBJ.downloadMeshes({
+                    obj: path
+                }, function (objs) {
+                    OBJ.initMeshBuffers(scene.gl, objs.obj);
+                    scene.meshes[label] = objs.obj;
+                    resolve(objs.obj);
+                })
+            }
         })
     }
     
-    Scene.prototype.easyObj = function (path, label, params) {
+    Scene.prototype.easyObj = function (path, label, params, addToScene) {
         var p = params || {};
         var scene = this;
+        if (addToScene === undefined) {
+            addToScene = true;
+        }
         // var DEG=360/(2*Math.PI);
         return new Promise(function (resolve, reject) {
             scene.loadObj(path, label).then(function (mesh) {
@@ -151,15 +272,21 @@ window.ExperimentalScene = (function () {
                 if (p.rotate) {
                     // ...
                 }
-                scene.addObject(o);
-                scene.current = o;
+                if (addToScene) {
+                    scene.addObject(o);
+                    scene.current = o;
+                }
                 resolve(o);
             });
             
         })
     }
     
-    Scene.prototype.quickAdd = function (label, params, suffix) {
+    Scene.prototype.quickLoad = function (label, params, suffix) {
+        
+    }
+    
+    Scene.prototype.quickAdd = function (label, params, suffix, addToScene) {
         /* Suffix is handy for loading lowpoly versions */
         var scene = this;
         var myCfg = scene.objConfigs[label];
@@ -168,7 +295,7 @@ window.ExperimentalScene = (function () {
         if (suffix) {
             objpath = objpath.replace('.obj', '_'+suffix+'.obj');
         }
-        return scene.easyObj(objpath, myCfg.label, p);
+        return scene.easyObj(objpath, myCfg.label+(suffix?'_'+suffix:''), p, addToScene);
     }
     
     Scene.prototype.del = function (labelOrObj) {
@@ -188,8 +315,37 @@ window.ExperimentalScene = (function () {
         
         console.log('setting up');
         
+        
+        scene.templatesList = [
+            {base: 'nude-almost', previewSuffix:'10k'},
+            {base: 'android-bust'},
+            {base: 'mermaid', previewSuffix:'20k'},
+            {base: 'beachgirl', previewSuffix: '20k'},
+            {base: 'satyr', previewSuffix: '10k'},
+            {base: 'qilinsongbao', previewSuffix: '10k'},
+            {base: 'hostess', previewSuffix: '10k'},
+            {base: 'nude-classical', previewSuffix: '3k'},
+            {base: 'nude-figure', previewSuffix: '20k'},
+            {base: 'nude-vanille'},
+            {base: 'nude-standing', previewSuffix: '10k'},
+            {base: 'nude-reclining', previewSuffix: '10k'},
+            {base: 'nude-kneeling', previewSuffix: '10k'},
+            {base: 'nymph-in-shell', previewSuffix:'10k'}
+        ];
+        // scene.templatesCurrentIdx = 0;
+        
+        
         var addCfg = function (label, path, params) {
             scene.objConfigs[label] = {label: label, path: path, params: params};
+            var whichGrp;
+            if (label.indexOf('nude') == 0) {
+                whichGrp = 'nude';
+            }
+            else {
+                whichGrp = 'general';
+            }
+            var myGrp = scene.modelGroups[whichGrp];
+            // myGrp.items.push()
         }
         
         
@@ -200,7 +356,7 @@ window.ExperimentalScene = (function () {
         // }
         
         
-        addCfg('nymph_in_shell', 'obj/nymph_in_shell.obj', {scale:0.11, y:2.25, z:3.5, ry:180/DEG, textureLabel:'concrete01'});
+        addCfg('nymph-in-shell', 'obj/nymph_in_shell.obj', {scale:0.11, y:2.25, z:3.5, ry:180/DEG, textureLabel:'concrete01'});
         addCfg('android-bust', 'obj/bust_of_android_girl.obj', {scale: 0.0016, y: 1.3});
         addCfg('beachgirl', 'obj/beach_girl.obj', {scale:0.43, ry:-3.41, z:3});
         addCfg('satyr', 'obj/satyr.obj', {scale:0.02, x:2, y:0, z:4, ry:-3.96});
@@ -269,7 +425,7 @@ window.ExperimentalScene = (function () {
         var ctrlInfo = {
             src: scene.modelSources.controlleresque,
             translate: {x:0.00, y:0, z:0.0},
-            size: {scale:0.01},
+            size: {scale:1.0},
             rotate: {x:0/DEG, y:0/DEG, z:0/DEG}, 
             greenColor: scene.addTextureFromColor({r:0.2, g:0.9, b:0.6}),
             blueColor: scene.addTextureFromColor({r:0.2, g:0.6, b:0.9})
@@ -280,37 +436,53 @@ window.ExperimentalScene = (function () {
             scene.moveRaftAndPlayerTo(curs.pos);
         }
         
-        
         var buttonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
-            if (btnIdx == '0' && btnStatus == 'held') {
-                if (sector == 'n') {
-                    scene.current.scaleFactor *= 1.005;
-                }
-                else if (sector == 's') {
-                    scene.current.scaleFactor *= 0.995;
-                }
-                else if (sector == 'w') {
-                    scene.current.orientation.y += 0.6/DEG;
-                }
-                else if (sector == 'e') {
-                    scene.current.orientation.y -= 0.6/DEG;
-                }
-            }
-            else if (btnIdx == '1' && btnStatus=='pressed'){
-                var curs = scene.getObjectByLabel('cursor');
-                scene.current.pos = {
-                    x: curs.pos.x,
-                    y: scene.current.pos.y,
-                    z: curs.pos.z
-                };
+            // if (btnStatus == 'held') {
+            //     console.log(btnIdx);
+            // }
+            if (btnStatus == 'pressed' && btnIdx == '3') {
+                scene.incrementUIMode();
             }
             else if (btnIdx == '2' && btnStatus == 'pressed') {
                 teleportUserToCursor();
             }
-            else if (btnStatus == 'pressed') {
-                console.log('Button idx', btnIdx, 'pressed.');
+            else {
+                return scene.uiModeButtonHandler(gamepadIndex, btnIdx, btnStatus, sector, myButton, extra);
             }
+            
         }
+        
+        
+        // var buttonHandler = function (gamepadIndex, btnIdx, btnStatus, sector, myButton, extra) {
+        //     if (btnIdx == '0' && btnStatus == 'held') {
+        //         if (sector == 'n') {
+        //             scene.current.scaleFactor *= 1.005;
+        //         }
+        //         else if (sector == 's') {
+        //             scene.current.scaleFactor *= 0.995;
+        //         }
+        //         else if (sector == 'w') {
+        //             scene.current.orientation.y += 0.6/DEG;
+        //         }
+        //         else if (sector == 'e') {
+        //             scene.current.orientation.y -= 0.6/DEG;
+        //         }
+        //     }
+        //     else if (btnIdx == '1' && btnStatus=='pressed'){
+        //         var curs = scene.getObjectByLabel('cursor');
+        //         scene.current.pos = {
+        //             x: curs.pos.x,
+        //             y: scene.current.pos.y,
+        //             z: curs.pos.z
+        //         };
+        //     }
+        //     else if (btnIdx == '2' && btnStatus == 'pressed') {
+        //         teleportUserToCursor();
+        //     }
+        //     else if (btnStatus == 'pressed') {
+        //         console.log('Button idx', btnIdx, 'pressed.');
+        //     }
+        // }
         
         // var rayProjector = FCUtil.makeControllerRayProjector(scene, gpIdx, sceneColliders)
         
@@ -347,6 +519,39 @@ window.ExperimentalScene = (function () {
         ctrl1.behaviours.push(FCUtil.makeGamepadTracker(scene, 1, buttonHandler));
         // ctrl1.behaviours.push(FCUtil.makeControllerRayProjector(scene, 1, [floorCollider]));
         scene.addObject(ctrl1);
+        
+        
+        
+        scene.incrementUIMode();
+        
+    }
+    
+    Scene.prototype.showPreviewModel = function (idx) {
+        var scene = this;
+        var tmpl = scene.templatesList[idx];
+        var tmplCfg = scene.objConfigs[tmpl.base];
+        console.log(tmpl, tmplCfg);
+        console.log(tmplCfg.params.scale);
+        var previewFactor = 9.0;
+        var scaleFactor = tmplCfg.params.scale/previewFactor;
+        scene.quickAdd(tmpl.base, {scale:scaleFactor}, tmpl.previewSuffix, false)
+        .then(function (obj) {
+            if (scene.previewModel) {
+                scene.removeObject(scene.previewModel);
+            }
+            var ytrans = 0.07+((tmplCfg.params.y || 0) / previewFactor);
+            console.log(ytrans);
+            // obj.translation.y = 0.01+(tmplCfg.params.y * tmplCfg.params.scale);
+            // obj.translation.y = 0.05;
+            
+            obj.translation.y = ytrans - 0.1;
+            obj.translation.z = -0.05;
+            obj.rotation.x = -1.101;
+            obj.groupLabel = 'uiChrome';
+            obj.behaviours.push(FCUtil.makeGamepadTracker(scene, 0, null));
+            scene.addObject(obj);
+            scene.previewModel = obj;
+        })
         
     }
 
