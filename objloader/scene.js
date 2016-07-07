@@ -213,7 +213,7 @@ window.ExperimentalScene = (function () {
             
             prereqPromises.push(new Promise(function (resolve, reject) {
                 OBJ.downloadMeshes({
-                    ctrl: 'body.obj'
+                    ctrl: '/assets/obj/ctrl_lowpoly_body.obj'
                 }, function (objs) {
                     OBJ.initMeshBuffers(scene.gl, objs.ctrl);
                     scene.meshes = objs;
@@ -356,20 +356,20 @@ window.ExperimentalScene = (function () {
         // }
         
         
-        addCfg('nymph-in-shell', 'obj/nymph_in_shell.obj', {scale:0.11, y:2.25, z:3.5, ry:180/DEG, textureLabel:'concrete01'});
-        addCfg('android-bust', 'obj/bust_of_android_girl.obj', {scale: 0.0016, y: 1.3});
-        addCfg('beachgirl', 'obj/beach_girl.obj', {scale:0.43, ry:-3.41, z:3});
-        addCfg('satyr', 'obj/satyr.obj', {scale:0.02, x:2, y:0, z:4, ry:-3.96});
-        addCfg('qilinsongbao', 'obj/qilinsongbao.obj', {scale: 0.014, ry:-3.32, z:3});
-        addCfg('hostess', 'obj/woman.obj', {scale:1.0, ry:180/DEG});
-        addCfg('mermaid', 'obj/mermaid.obj', {scale:0.005, ry: 2.27, z:2.5});
-        addCfg('nude-classical', 'obj/nude_classical_1.obj', {scale:0.127, ry:0.687});
-        addCfg('nude-figure', 'obj/figure_posing_nude.obj', {scale:0.028, ry:2.39});
-        addCfg('nude-vanille', 'obj/nude_vanille.obj', {scale:0.014, ry:2.71});
-        addCfg('nude-standing', 'obj/nude_woman.obj', {scale: 0.001});
-        addCfg('nude-reclining', 'obj/nude_reclining.obj', {scale: 0.002, y:-0.65, z:1.8, ry:180/DEG});
-        addCfg('nude-kneeling', 'obj/kneeling.obj', {scale:0.013, ry:2.1/RAD});
-        addCfg('nude-almost', 'obj/almost_nude.obj', {scale:0.01, ry:2.9});
+        addCfg('nymph-in-shell', '/assets/obj/content/nymph_in_shell.obj', {scale:0.11, y:2.25, z:3.5, ry:180/DEG, textureLabel:'concrete01'});
+        addCfg('android-bust', '/assets/obj/content/bust_of_android_girl.obj', {scale: 0.0016, y: 1.3});
+        addCfg('beachgirl', '/assets/obj/content/beach_girl.obj', {scale:0.43, ry:-3.41, z:3});
+        addCfg('satyr', '/assets/obj/content/satyr.obj', {scale:0.02, x:2, y:0, z:4, ry:-3.96});
+        addCfg('qilinsongbao', '/assets/obj/content/qilinsongbao.obj', {scale: 0.014, ry:-3.32, z:3});
+        addCfg('hostess', '/assets/obj/content/woman.obj', {scale:1.0, ry:180/DEG});
+        addCfg('mermaid', '/assets/obj/content/mermaid.obj', {scale:0.005, ry: 2.27, z:2.5});
+        addCfg('nude-classical', '/assets/obj/content/nude_classical_1.obj', {scale:0.127, ry:0.687});
+        addCfg('nude-figure', '/assets/obj/content/figure_posing_nude.obj', {scale:0.028, ry:2.39});
+        addCfg('nude-vanille', '/assets/obj/content/nude_vanille.obj', {scale:0.014, ry:2.71});
+        addCfg('nude-standing', '/assets/obj/content/nude_woman.obj', {scale: 0.001});
+        addCfg('nude-reclining', '/assets/obj/content/nude_reclining.obj', {scale: 0.002, y:-0.65, z:1.8, ry:180/DEG});
+        addCfg('nude-kneeling', '/assets/obj/content/kneeling.obj', {scale:0.013, ry:2.1/RAD});
+        addCfg('nude-almost', '/assets/obj/content/almost_nude.obj', {scale:0.01, ry:2.9});
                 
         /* Floor */
         var floor = new FCShapes.WallShape(
