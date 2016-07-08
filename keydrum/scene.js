@@ -353,7 +353,8 @@ var P = FCPrimitives;
 var Keyboard = function (lexicon, arbiter, pos, size, rotate, params) {
     P.Drawable.call(this, pos, size, rotate, params);
     size = size || {};
-    this.scaleFactor = size.scale || 0.1;
+    this.unitFactor = size.scale || 0.1;
+    this.scaleFactor = 1.0;
     this.lexicon = lexicon;
     this.arbiter = arbiter;
     
@@ -413,7 +414,7 @@ Keyboard.prototype.buildGlyphSprite = function () {
 /* getKeyInfo is used to build the collider as well as the poly map */
 Keyboard.prototype.getKeyInfo = function (idx) {
     var kb = this;
-    var unitFactor = this.scaleFactor;
+    var unitFactor = this.unitFactor;
     var mK = kb.lexicon.keys[idx];
     var l = (mK.x * unitFactor) + kb.keyMargin;
     var b = (mK.y * unitFactor) + kb.keyMargin;
@@ -438,7 +439,7 @@ Keyboard.prototype.divulge = function () {
     var poly = new P.Poly();
     poly.normal(0,0,1);
     var keys = kb.lexicon.keys;
-    var unitFactor = this.scaleFactor;
+    var unitFactor = this.unitFactor;
     var margin = 0.007;
     kb.buildGlyphSprite(); /* Generates the tex coords, among other things */
     for (var i=0; i<keys.length; i++) {

@@ -9,6 +9,8 @@
         <script src="/carnival/lib/fc_scene.js"></script>
         <script src="/carnival/lib/fc_feedtools.js"></script>
         <script src="scene.js"></script>
+    </head>
+    <body>
         
         <div id="error-container" style="display: none;">
             <p>Seems like something went wrong.</p>
@@ -54,5 +56,17 @@
         </script>
         <script src="/carnival/lib/fc_engine.js"></script>
         
-    </head>
+        <div>
+            <p>Inspired <a href="http://www.polygon.com/2016/5/19/11715654/google-daydream-vr-drums">by this</a>, I thought I'd have a go at building a drumkit keyboard. Unfortunately there's a
+                 short-but-immersion-breaking glitch whenever the text updates which really cramps my style.</p>
+             <p>The glitch occurs whenever a canvas gives up its data for use in a texture, which is exactly how
+                 our text rendering works. Looksy is affected too, when loading images, but it's less noticeable 
+                 unless you're connecting to a Tumblr feed or other extended datasource.</p>
+             <p>It's plausible that moving this operation off the main thread by using web workers may allow us to solve
+                 the problem but it remains to be seen. If that can be solved I'll start pouring effort into this one again.</p>
+            
+            
+        </div>
+
+    </body>            
 </html>
