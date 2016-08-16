@@ -43,6 +43,8 @@ window.ExperimentalScene = (function () {
         
         this.currentTemplate = null; // { base: previewSuffix: actualSuffix: }
         
+        this.assetPrefix = '//assets.meta4vr.net/obj/content/';
+        
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -325,7 +327,8 @@ window.ExperimentalScene = (function () {
     Scene.prototype.quickAdd2 = function (cfg, params, suffix, addToScene) {
         var scene = this;
         var p = cfg.params || params || {};
-        var objpath = '/assets/obj/content/'+cfg.base;
+        // var objpath = '/assets/obj/content/'+cfg.base;
+        var objpath = scene.assetPrefix + cfg.base;
         if (suffix) {
             objpath = objpath.replace('.obj', '_'+suffix+'.obj');
         }
@@ -334,7 +337,7 @@ window.ExperimentalScene = (function () {
     }
     
     
-    console.log('To easily load an unconfigured obj, ')
+    // console.log('To easily load an unconfigured obj, ')
     
     Scene.prototype.del = function (labelOrObj) {
         if (labelOrObj.pos) {
@@ -387,7 +390,10 @@ window.ExperimentalScene = (function () {
             // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
             // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
             // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
-            {base: 'mingdog.obj', label: 'mingdog', previewSuffix:'10k', actualSuffix:'100k'}
+            {base: 'mingdog.obj', label: 'mingdog', previewSuffix:'10k', actualSuffix:'100k'},
+            // {base: 'satyr.obj', label: 'satyr', previewSuffix:'10k', actualSuffix:'100k'},
+            // {base: 'nymph_in_shell.obj', label: 'nymph_in_shell', previewSuffix:'10k', actualSuffix:'100k'}
+            
             
         ]
         
