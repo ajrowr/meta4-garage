@@ -33,39 +33,44 @@
         </div>
         
         
-        <div>
+        <!-- <div>
             <p>
                 Both controllers behave the same, and there are 3 modes. Switch modes with the menu button (above the trackpad).
             </p>
             <p>Mode 1: Select and place a model. A low-poly preview of a model will appear above your controller. Click
                 trackpad to change models, point controller at the ground and press trigger to place.</p>
-            <p>Mode 2: Move, scale and rotate. Trackpad left/right rotates, trackpad up/down makes bigger and smaller, 
+            <p>Mode 2: Move, scale and rotate. Trackpad left/right rotates, trackpad up/down makes bigger and smaller,
                 point controller at ground and pull trigger to move current model.
             </p>
             <p>Mode 3: Doesn't do anything just yet but will probably be used for choosing colours.</p>
-            
+
             <p>In all modes, point controller at ground and press grip button to teleport.</p>
-            
+
             <p>Known issues:</p>
             <ul>
                 <li>Mesh parse causes a glitch (pretty severe for larger meshes)</li>
                 <li>It's not obvious that anything has happened when you first place a model, ie. no loading indicator</li>
                 <li>Currently no way of selecting a model, you can only operate on the most-recently-placed one.</li>
                 <li>Attachment of floating preview models to controller is pretty inconsistent.</li>
-                <li>No texture coords</li>
+                <li>No textures or texcoords</li>
+                <li>Should be able to get roughly 75% compression on obj files by configuring mod_deflate for Apache</li>
+                <li>Lighting is local to model instead of scene (shader improvements needed), and too much detail is
+                    lost in shadows</li>
                 <li>Things are just like, way too green.</li>
             </ul>
-            
+
             <p>Thanks to:</p>
             <ul>
                 <li>X for the obj loader code</li>
                 <li>Y for the use of the Lowpoly Vive Controller model</li>
                 <li>Z for the STL and OBJ models (weblink)</li>
             </ul>
-            
+
             <p>If you've got 3d models you'd like to contribute to this, drop me a line!</p>
-            
-        </div>
+
+
+
+        </div> -->
         
         <script>
         window.vrScene = new ExperimentalScene();
