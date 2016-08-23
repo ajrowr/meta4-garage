@@ -1,140 +1,16 @@
 
 
-// var _buildBuffer = function( gl, type, data, itemSize ){
-//     var buffer = gl.createBuffer();
-//     var arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint32Array;
-//     gl.bindBuffer(type, buffer);
-//     gl.bufferData(type, new arrayView(data), gl.STATIC_DRAW);
-//     buffer.itemSize = itemSize;
-//     buffer.numItems = data.length / itemSize;
-//     return buffer;
-// }
-//
-// var _initMeshBuffers_v1 = function( gl, mesh ){
-//     mesh.normalBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertexNormals, 3);
-//     mesh.textureBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.textures, 2);
-//     mesh.vertexBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertices, 3);
-//     mesh.indexBuffer = _buildBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, mesh.indices, 1);
-// }
-
-var _initMeshBuffers = function (gl, mesh) {
-    var mkBuf = function (dat, typ, sz) {
-        var newBuf = gl.createBuffer();
-        newBuf.itemSize = sz;
-        newBuf.numItems = dat.length / sz;
-        
-        var bufTyp = (typ == gl.ELEMENT_ARRAY_BUFFER ? Uint32Array : Float32Array);
-        gl.bindBuffer(typ, newBuf);
-        gl.bufferData(typ, new bufTyp(dat), gl.STATIC_DRAW);
-        return newBuf;
-    }
-    mesh.normalBuffer = mkBuf(mesh.vertexNormals, gl.ARRAY_BUFFER, 3);
-    mesh.textureBuffer = mkBuf(mesh.textures, gl.ARRAY_BUFFER, 2);
-    mesh.vertexBuffer = mkBuf(mesh.vertices, gl.ARRAY_BUFFER, 3);
-    mesh.indexBuffer = mkBuf(mesh.indices, gl.ELEMENT_ARRAY_BUFFER, 1);
-}
-
-// var _deleteMeshBuffers = function( gl, mesh ){
-//     gl.deleteBuffer(mesh.normalBuffer);
-//     gl.deleteBuffer(mesh.textureBuffer);
-//     gl.deleteBuffer(mesh.vertexBuffer);
-//     gl.deleteBuffer(mesh.indexBuffer);
-// }
-
-
-var P = FCPrimitives;
-var LoaderObj = function (mesh, pos, size, rotate, params) {
-    this.mesh = mesh;
-    var sz = size || {};
-    this.scaleFactor = sz.scale || 1.0;
-    P.Drawable.call(this, pos, size, rotate, params);
-}
-
-LoaderObj.prototype = Object.create(P.Drawable.prototype);
-
-LoaderObj.prototype.divulge = function () {
-    return {};
-}
-
-
-
-
-
 window.ExperimentalScene = (function () {
     "use strict";
     
     function Scene() {
         /* Declare any class and instance vars unique to this scene, here. */
         FCScene.call(this);
+        this.meshes = {};
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
-    
-    
-    Scene.prototype.loadObj = function (path, label) {
-        var scene = this;
-        return new Promise(function (resolve, reject) {
-            if (scene.meshes[label]) {
-                resolve(scene.meshes[label]);
-            }
-            else {
-                OBJ.downloadMeshes({
-                    obj: path
-                }, function (objs) {
-                    console.log('downloaded; initialising');
-                    OBJ.initMeshBuffers(scene.gl, objs.obj);
-                    scene.meshes[label] = objs.obj;
-                    resolve(objs.obj);
-                })
-            }
-        })
-    }
-    
-    Scene.prototype.easyObj = function (path, label, params, addToScene) {
-        var p = params || {};
-        var scene = this;
-        if (addToScene === undefined) {
-            addToScene = true;
-        }
-        // var DEG=360/(2*Math.PI);
-        return new Promise(function (resolve, reject) {
-            scene.loadObj(path, label).then(function (mesh) {
-                var o = new LoaderObj(
-                    mesh,
-                    {x: p.x || 0, y: p.y || 0, z: p.z || 2},
-                    {scale: p.scale || 0.05},
-                    {x: p.rx || 0, y: p.ry || 0, z: p.rz || 0},
-                    {shaderLabel: p.shaderLabel || 'diffuse', 
-                     textureLabel: p.textureLabel || 'forestgreen', 
-                     label: label || p.label || path}
-                );
-                if (p.rotate) {
-                    // ...
-                }
-                if (addToScene) {
-                    scene.addObject(o);
-                    scene.current = o;
-                }
-                resolve(o);
-            });
-            
-        })
-    }
-    
-    Scene.prototype.quickAdd2 = function (cfg, params, suffix, addToScene) {
-        var scene = this;
-        var p = cfg.params || params || {};
-        // var objpath = '/assets/obj/content/'+cfg.base;
-        var objpath = scene.assetPrefix + cfg.base;
-        if (suffix) {
-            objpath = objpath.replace('.obj', '_'+suffix+'.obj');
-        }
-        return scene.easyObj(objpath, cfg.label+(suffix?'_'+suffix:''), p, addToScene);
         
-    }
-    
-    
-    
     Scene.prototype.setupPrereqs = function () {
         var scene = this;
         var prereqPromises = [];
@@ -198,19 +74,14 @@ window.ExperimentalScene = (function () {
                     vertexNormal: 2                
                 }));
             }
-            
-            
+                        
             prereqPromises.push(new Promise(function (resolve, reject) {
-                OBJ.downloadMeshes({
-                    ctrl: '//assets.meta4vr.net/mesh/obj/ctrl_lowpoly_body.obj'
-                }, function (objs) {
-                    _initMeshBuffers(scene.gl, objs.ctrl);
-                    scene.meshes = objs;
+                FCShapeUtils.loadObj('//assets.meta4vr.net/mesh/obj/ctrl_lowpoly_body.obj')
+                .then(function (mesh) {
+                    scene.meshes['ctrl'] = mesh;
                     resolve();
-                })
-                
+                });
             }));
-            
             
             for (var i=0; i<texColors.length; i++) {
                 var myTexColor = texColors[i];
@@ -225,71 +96,22 @@ window.ExperimentalScene = (function () {
         
         
     }
-
-
-    
-    Scene.prototype.meshParseWorker = function () {
-        var worker = new window.Worker('webworker_objparse.js');
-        
-        // var arraybuf = new ArrayBuffer(1);
-        
-        worker.onmessage = function (m) {
-            console.log('Got message from worker:', m);
-        }
-        return worker;
-    }
-    
-    Scene.prototype.loadMeshWithWorker = function (url) {
-        // var defaultMeshUrl = '//assets.meta4vr.net/mesh/obj/ctrl_lowpoly_body.obj';
-        var defaultMeshUrl = '//assets.meta4vr.net/mesh/obj/content/buddha_100k.obj';
-        var meshUrl = url || defaultMeshUrl;
-        return new Promise(function (resolve, reject) {
-            var worker = new window.Worker('webworker_objparse.js');
-            worker.onmessage = function (msg) {
-                if (msg.data.status == 'mesh_loaded') {
-                    worker.postMessage({op:'get'});
-                }
-                else if (msg.data.status == 'here_you_go') {
-                    resolve(msg.data);
-                }
-            };
-            worker.postMessage({op:'load_mesh', src:meshUrl});
-            
-        })
-    }
-
-    Scene.prototype.loadMesh = function (url) {
-        var scene = this;
-        scene.loadMeshWithWorker(url)
-        .then(function (objdat) {
-            var mesh = {
-                // vertices: Array.prototype.slice.call(new Float32Array(objdat.vertices)),
-                // textures: Array.prototype.slice.call(new Float32Array(objdat.texCoords)),
-                // vertexNormals: Array.prototype.slice.call(new Float32Array(objdat.normals)),
-                // indices: Array.prototype.slice.call(new Uint32Array(objdat.indices))
-                vertices: new Float32Array(objdat.vertices),
-                textures: new Float32Array(objdat.texCoords),
-                vertexNormals: new Float32Array(objdat.normals),
-                indices: new Uint32Array(objdat.indices)
-            };
-            _initMeshBuffers(scene.gl, mesh);
-            scene.THE_MESH = mesh;
-            console.log('mesh is loaded');
-            var theObj = new LoaderObj(
-                mesh, 
-                {x:0, y:1, z:2.5}, {scale: 0.03}, 
-                {x:0, y:Math.PI, z:0}, 
-                {shaderLabel:'diffuse', textureLabel: 'forestgreen', label:'AThing'});
-            scene.THE_OBJ = theObj;
-            scene.addObject(theObj);
-        })
-    }
     
     Scene.prototype.addBuddha = function () {
         var scene = this;
         // var src = '//assets.meta4vr.net/mesh/obj/content/bacchante.obj';
         var src = '//assets.meta4vr.net/mesh/obj/content/buddha_10k.obj';
-        scene.easyObj(src, 'buddha', {x:0, y:1, z:2.5, ry:Math.PI});
+        
+        FCShapeUtils.loadObj(src)
+        .then(function (mesh) {
+            scene.addObject(new FCShapes.MeshShape(mesh, 
+                {x:0, y:1, z:2.5}, 
+                {scale: 0.07}, 
+                {x:0, y:Math.PI, z:0}, 
+                {shaderLabel: 'diffuse', textureLabel: 'yellow', label: 'aThing'}
+            ));
+        });
+        
     }
     
     Scene.prototype.setupScene = function () {
@@ -322,7 +144,6 @@ window.ExperimentalScene = (function () {
         
         /* Controllers */
         var ctrlInfo = {
-            // src: scene.modelSources.controlleresque,
             translate: {x:0.00, y:0, z:0.0},
             size: {scale:1.0},
             rotate: {x:0/DEG, y:0/DEG, z:0/DEG}, 
@@ -343,7 +164,7 @@ window.ExperimentalScene = (function () {
             }
         };
         
-        var ctrl0 = new LoaderObj(
+        var ctrl0 = new FCShapes.MeshShape(
             scene.meshes['ctrl'],
             _hidden_beneath_floor, /* Hide it under the floor. This position will be overridden */
             ctrlInfo.size,
@@ -360,7 +181,7 @@ window.ExperimentalScene = (function () {
         // ctrl0.behaviours.push(FCUtil.makeControllerRayProjector(scene, 0, [floorCollider]));
         scene.addObject(ctrl0);
         
-        var ctrl1 = new LoaderObj(
+        var ctrl1 = new FCShapes.MeshShape(
             scene.meshes['ctrl'],
             _hidden_beneath_floor, /* Hide it under the floor. This position will be overridden */
             ctrlInfo.size,
