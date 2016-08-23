@@ -54,7 +54,7 @@ window.ExperimentalScene = (function () {
                         
             /* Load meshes */
             var meshes = [
-                {src: '//assets.meta4vr.net/mesh/obj/ctrl_lowpoly_body.obj', label: 'ctrl'}
+                {src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj', label: 'ctrl'}
             ];
             for (var i=0; i<meshes.length; i++) {
                 var myMesh = meshes[i];

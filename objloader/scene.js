@@ -43,7 +43,7 @@ window.ExperimentalScene = (function () {
         
         this.currentTemplate = null; // { base: previewSuffix: actualSuffix: }
         
-        this.assetPrefix = '//assets.meta4vr.net/obj/content/';
+        this.assetPrefix = '//assets.meta4vr.net/mesh/obj/content/';
         
     }
     
@@ -216,16 +216,37 @@ window.ExperimentalScene = (function () {
                 scene.addTextureFromColor(myTexColor, myTexColor.label);
             }
             
-            prereqPromises.push(new Promise(function (resolve, reject) {
-                OBJ.downloadMeshes({
-                    ctrl: '/assets/obj/ctrl_lowpoly_body.obj'
-                }, function (objs) {
-                    OBJ.initMeshBuffers(scene.gl, objs.ctrl);
-                    scene.meshes = objs;
-                    resolve();
-                })
-                
-            }));
+            
+            /* Load meshes */
+            var meshes = [
+                {src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj', label: 'controller'}
+            ];
+            for (var i=0; i<meshes.length; i++) {
+                var myMesh = meshes[i];
+                prereqPromises.push(new Promise(function (resolve, reject) {
+                    if (myMesh.src.endsWith('.obj')) {
+                        FCShapeUtils.loadObj(myMesh.src)
+                        .then(function (mesh) {
+                            scene.meshes[myMesh.label] = mesh;
+                            resolve();
+                        })
+                    };
+                    
+                }))
+            }
+            
+            
+            
+            // prereqPromises.push(new Promise(function (resolve, reject) {
+            //     OBJ.downloadMeshes({
+            //         ctrl: '/assets/obj/ctrl_lowpoly_body.obj'
+            //     }, function (objs) {
+            //         OBJ.initMeshBuffers(scene.gl, objs.ctrl);
+            //         scene.meshes = objs;
+            //         resolve();
+            //     })
+            //
+            // }));
             
             Promise.all(prereqPromises).then(function () {
                 resolve();
@@ -245,13 +266,19 @@ window.ExperimentalScene = (function () {
                 resolve(scene.meshes[label]);
             }
             else {
-                OBJ.downloadMeshes({
-                    obj: path
-                }, function (objs) {
-                    OBJ.initMeshBuffers(scene.gl, objs.obj);
-                    scene.meshes[label] = objs.obj;
-                    resolve(objs.obj);
-                })
+                FCShapeUtils.loadObj(path)
+                .then(function(mesh) {
+                    scene.meshes[label] = mesh;
+                    resolve(mesh);
+                });
+                
+                // OBJ.downloadMeshes({
+                //     obj: path
+                // }, function (objs) {
+                //     OBJ.initMeshBuffers(scene.gl, objs.obj);
+                //     scene.meshes[label] = objs.obj;
+                //     resolve(objs.obj);
+                // })
             }
         })
     }
@@ -561,8 +588,8 @@ window.ExperimentalScene = (function () {
         
         // var rayProjector = FCUtil.makeControllerRayProjector(scene, gpIdx, sceneColliders)
         
-        var ctrl0 = new LoaderObj(
-            scene.meshes['ctrl'],
+        var ctrl0 = new FCShapes.MeshShape(
+            scene.meshes.controller,
             _hidden_beneath_floor, /* Hide it under the floor. This position will be overridden */
             ctrlInfo.size,
             null,
@@ -578,8 +605,8 @@ window.ExperimentalScene = (function () {
         ctrl0.behaviours.push(FCUtil.makeControllerRayProjector(scene, 0, [floorCollider]));
         scene.addObject(ctrl0);
         
-        var ctrl1 = new LoaderObj(
-            scene.meshes['ctrl'],
+        var ctrl1 = new FCShapes.MeshShape(
+            scene.meshes.controller,
             _hidden_beneath_floor, /* Hide it under the floor. This position will be overridden */
             ctrlInfo.size,
             null,
