@@ -1,5 +1,6 @@
 
 var parseMesh = function (objectData) {
+    
     /*
      The OBJ file format does a sort of compression when saving a model in a
      program like Blender. There are at least 3 sections (4 including textures)
@@ -77,9 +78,7 @@ var parseMesh = function (objectData) {
     unpacked.indices = [];
     unpacked.index = 0;
     // array of lines separated by the newline
-    console.log('Parsing mesh.');
     var lines = objectData.split('\n');
-    console.log('a');
 
     var VERTEX_RE = /^v\s/;
     var NORMAL_RE = /^vn\s/;
@@ -197,7 +196,6 @@ var parseMesh = function (objectData) {
     // this.vertexNormals = unpacked.norms;
     // this.textures = unpacked.textures;
     // this.indices = unpacked.indices;
-    console.log('Mesh is parsed.');
     // return out;
     
   }

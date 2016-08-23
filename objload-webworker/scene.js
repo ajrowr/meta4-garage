@@ -1,28 +1,45 @@
 
 
-var _buildBuffer = function( gl, type, data, itemSize ){
-    var buffer = gl.createBuffer();
-    var arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint32Array;
-    gl.bindBuffer(type, buffer);
-    gl.bufferData(type, new arrayView(data), gl.STATIC_DRAW);
-    buffer.itemSize = itemSize;
-    buffer.numItems = data.length / itemSize;
-    return buffer;
+// var _buildBuffer = function( gl, type, data, itemSize ){
+//     var buffer = gl.createBuffer();
+//     var arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint32Array;
+//     gl.bindBuffer(type, buffer);
+//     gl.bufferData(type, new arrayView(data), gl.STATIC_DRAW);
+//     buffer.itemSize = itemSize;
+//     buffer.numItems = data.length / itemSize;
+//     return buffer;
+// }
+//
+// var _initMeshBuffers_v1 = function( gl, mesh ){
+//     mesh.normalBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertexNormals, 3);
+//     mesh.textureBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.textures, 2);
+//     mesh.vertexBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertices, 3);
+//     mesh.indexBuffer = _buildBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, mesh.indices, 1);
+// }
+
+var _initMeshBuffers = function (gl, mesh) {
+    var mkBuf = function (dat, typ, sz) {
+        var newBuf = gl.createBuffer();
+        newBuf.itemSize = sz;
+        newBuf.numItems = dat.length / sz;
+        
+        var bufTyp = (typ == gl.ELEMENT_ARRAY_BUFFER ? Uint32Array : Float32Array);
+        gl.bindBuffer(typ, newBuf);
+        gl.bufferData(typ, new bufTyp(dat), gl.STATIC_DRAW);
+        return newBuf;
+    }
+    mesh.normalBuffer = mkBuf(mesh.vertexNormals, gl.ARRAY_BUFFER, 3);
+    mesh.textureBuffer = mkBuf(mesh.textures, gl.ARRAY_BUFFER, 2);
+    mesh.vertexBuffer = mkBuf(mesh.vertices, gl.ARRAY_BUFFER, 3);
+    mesh.indexBuffer = mkBuf(mesh.indices, gl.ELEMENT_ARRAY_BUFFER, 1);
 }
 
-var _initMeshBuffers = function( gl, mesh ){
-    mesh.normalBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertexNormals, 3);
-    mesh.textureBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.textures, 2);
-    mesh.vertexBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertices, 3);
-    mesh.indexBuffer = _buildBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, mesh.indices, 1);
-}
-
-var _deleteMeshBuffers = function( gl, mesh ){
-    gl.deleteBuffer(mesh.normalBuffer);
-    gl.deleteBuffer(mesh.textureBuffer);
-    gl.deleteBuffer(mesh.vertexBuffer);
-    gl.deleteBuffer(mesh.indexBuffer);
-}
+// var _deleteMeshBuffers = function( gl, mesh ){
+//     gl.deleteBuffer(mesh.normalBuffer);
+//     gl.deleteBuffer(mesh.textureBuffer);
+//     gl.deleteBuffer(mesh.vertexBuffer);
+//     gl.deleteBuffer(mesh.indexBuffer);
+// }
 
 
 var P = FCPrimitives;
@@ -212,7 +229,7 @@ window.ExperimentalScene = (function () {
 
     
     Scene.prototype.meshParseWorker = function () {
-        var worker = new window.Worker('webworker_meshparse.js');
+        var worker = new window.Worker('webworker_objparse.js');
         
         // var arraybuf = new ArrayBuffer(1);
         
@@ -227,7 +244,7 @@ window.ExperimentalScene = (function () {
         var defaultMeshUrl = '//assets.meta4vr.net/mesh/obj/content/buddha_100k.obj';
         var meshUrl = url || defaultMeshUrl;
         return new Promise(function (resolve, reject) {
-            var worker = new window.Worker('webworker_meshparse.js');
+            var worker = new window.Worker('webworker_objparse.js');
             worker.onmessage = function (msg) {
                 if (msg.data.status == 'mesh_loaded') {
                     worker.postMessage({op:'get'});
