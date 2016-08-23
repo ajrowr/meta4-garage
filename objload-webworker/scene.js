@@ -16,10 +16,16 @@ window.ExperimentalScene = (function () {
         var prereqPromises = [];
         return new Promise(function (resolve, reject) {
 
+            /* Load textures */
             var textures = [
                 {src: '//assets.meta4vr.net/texture/concrete01.jpg', label: 'concrete01'}
             ];
+            for (var i=0; i<textures.length; i++) {
+                var myTex = textures[i];
+                prereqPromises.push(scene.addTextureFromImage(myTex.src, myTex.label));
+            }
             
+            /* Build solid colour textures */
             var texColors = [
                 {hex: '#000000', label: 'black'},
                 {hex: '#00007f', label: 'navy'},
@@ -39,33 +45,36 @@ window.ExperimentalScene = (function () {
                 {hex: '#ff00ff', label: 'magenta'},
                 {hex: '#ffa500', label: 'orange'},
                 {hex: '#ffff00', label: 'yellow'},
-                
-                // {hex: '', label: ''},
-                // {hex: '', label: ''},
-                // {hex: '', label: ''},
-                // {hex: '', label: ''},
                 {hex: '#ffffff', label: 'white'}
-            ]
-        
-            var models = [
-                {src: '//assets.meta4vr.net/mesh/stl/controlleresque.stl', label: 'controlleresque'}
             ];
+            for (var i=0; i<texColors.length; i++) {
+                var myTexColor = texColors[i];
+                scene.addTextureFromColor(myTexColor, myTexColor.label);
+            }
+                        
+            /* Load meshes */
+            var meshes = [
+                {src: '//assets.meta4vr.net/mesh/obj/ctrl_lowpoly_body.obj', label: 'ctrl'}
+            ];
+            for (var i=0; i<meshes.length; i++) {
+                var myMesh = meshes[i];
+                prereqPromises.push(new Promise(function (resolve, reject) {
+                    if (myMesh.src.endsWith('.obj')) {
+                        FCShapeUtils.loadObj(myMesh.src)
+                        .then(function (mesh) {
+                            scene.meshes[myMesh.label] = mesh;
+                            resolve();
+                        })
+                    };
+                    
+                }))
+            }
         
+            /* Load shaders */
             var shaders = [
                 {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
                 {srcFs: '//assets.meta4vr.net/shader/diffuse2.fs', srcVs: '//assets.meta4vr.net/shader/diffuse2.vs', label: 'diffuse'}
             ];
-        
-            for (var i=0; i<textures.length; i++) {
-                var myTex = textures[i];
-                prereqPromises.push(scene.addTextureFromImage(myTex.src, myTex.label));
-            }
-        
-            for (var i=0; i<models.length; i++) {
-                var myModel = models[i];
-                prereqPromises.push(scene.addModelSource(myModel.src, myModel.label));
-            }
-        
             for (var i=0; i<shaders.length; i++) {
                 var myShader = shaders[i];
                 prereqPromises.push(scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
@@ -74,20 +83,8 @@ window.ExperimentalScene = (function () {
                     vertexNormal: 2                
                 }));
             }
-                        
-            prereqPromises.push(new Promise(function (resolve, reject) {
-                FCShapeUtils.loadObj('//assets.meta4vr.net/mesh/obj/ctrl_lowpoly_body.obj')
-                .then(function (mesh) {
-                    scene.meshes['ctrl'] = mesh;
-                    resolve();
-                });
-            }));
             
-            for (var i=0; i<texColors.length; i++) {
-                var myTexColor = texColors[i];
-                scene.addTextureFromColor(myTexColor, myTexColor.label);
-            }
-            
+            /* Wait for everything to finish and resolve() */
             Promise.all(prereqPromises).then(function () {
                 resolve();
             });
