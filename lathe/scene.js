@@ -7,7 +7,7 @@ var LatheShape = function (pos, size, rotate, params) {
     var sz = size || {};
     this.segmentCount = p.segmentCount || 100;
     this.segmentsFaceInwards = p.segmentsFaceInwards || false;
-    this.profile = sz.profile || [1,0];
+    this.profile = p.profile || [1,0];
     this.height = sz.height || 1;
     this.profileSampler = p.profileSampler || null;
     this.verticalSegmentCount = p.verticalSegmentCount || this.profile.length-1;
@@ -90,7 +90,7 @@ window.ExperimentalScene = (function () {
         scene.nextLocation = mkGridAssigner(3, 5, 0, 0, -2);
         
         var mkColourFetcher = function () {
-            var idx = 0;
+            var idx = 1;
             var getNext = function () {
                 return scene.texColours[idx++%scene.texColours.length];
             }
@@ -297,31 +297,25 @@ window.ExperimentalScene = (function () {
         var cyl = new FCShapes.CylinderShape(scene.nextLocation(), {radius:0.2, height:3}, null, {shaderLabel:'diffuse', texture:scene.nextColour()});
         scene.addObject(cyl);
         
-        var lat = new LatheShape(scene.nextLocation(), 
-            {height:3, profile:[0.2,0.3,0.2,1,0]}, quarterTurn,
-            {shaderLabel:'diffuse', texture:scene.nextColour(), segmentCount:100}
-        );
-        scene.addObject(lat);
+        scene.addLatheWithPoints(3, [0,1]);
         
-        var spindle = new FCShapes.LatheShape(scene.nextLocation(), 
-            {height:0.5, profile:[0, 0.2, 0.2, 0.2, 0]}, null, 
-            {shaderLabel:'diffuse', texture:scene.nextColour(), segmentCount:50}
-        );
-        scene.addObject(spindle);
+        scene.addLatheWithPoints(3, [0.2, 0.3, 0.2, 1, 0]);
+                
+        scene.addLatheWithPoints(1, [0, 0.4, 0.4, 0.4, 0]);
         
-        scene.addLathe(function (idx, count) {
+        scene.addLatheWithFunction(3, function (idx, count) {
             // return 0.3+(0.5*Math.sin(5*Math.PI*(idx/count)));
             return 0.6-(0.2*Math.sin(5*Math.PI*(idx/count)));
         });
                 
-        scene.addLathe(function (idx, count) {
+        scene.addLatheWithFunction(3, function (idx, count) {
             var fract = idx/count;
             if (fract < 0.5) return 0.2;
             else if (fract < 0.7) return 0.3;
             else return 0.4;
         });
         
-        scene.addLathe(function (idx, count) {
+        scene.addLatheWithFunction(3, function (idx, count) {
             var fract = idx/count;
             if (fract < 0.5) return 0.2;
             else if (fract < 0.7) {
@@ -330,7 +324,7 @@ window.ExperimentalScene = (function () {
             else return 0.4;
         });
         
-        scene.addLathe(function (idx, count) {
+        scene.addLatheWithFunction(3, function (idx, count) {
             var fract = idx/count;
             if (fract < 0.5) {
                 return 0.5*fract;
@@ -342,17 +336,28 @@ window.ExperimentalScene = (function () {
 
     }
     
-    Scene.prototype.addLathe = function (sampler) {
+    Scene.prototype.addLatheWithPoints = function (height, profile) {
         var scene = this;
         var quarterTurn = {x:0, y:Math.PI/2, z:0};
         var lathe = new LatheShape(
             scene.nextLocation(),
-            {height:3}, quarterTurn,
+            {height:height}, quarterTurn,
+            {shaderLabel:'diffuse', texture:scene.nextColour(), groupLabel:'lathes',
+            profile:profile}
+        );
+        scene.addObject(lathe);
+    }
+    
+    Scene.prototype.addLatheWithFunction = function (height, sampler) {
+        var scene = this;
+        var quarterTurn = {x:0, y:Math.PI/2, z:0};
+        var lathe = new LatheShape(
+            scene.nextLocation(),
+            {height:height}, quarterTurn,
             {shaderLabel:'diffuse', texture:scene.nextColour(), verticalSegmentCount:120, groupLabel:'lathes',
             profileSampler: sampler}
         );
         scene.addObject(lathe);
-        
     }
 
     return Scene;
