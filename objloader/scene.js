@@ -82,8 +82,19 @@ window.ExperimentalScene = (function () {
                     var scaleFactor = 0.1;
 
                     // scene.quickAdd(tmpl.base, {scale:scaleFactor, x:curs.pos.x, z: curs.pos.z, y:tmplCfg.params.y}, null, false)
+                    
+                    /* Add a placeholder */
+                    var placeholder = new FCShapes.LatheShape(
+                        {x:curs.pos.x, y:0, z:curs.pos.z}, 
+                        {height:0.5, profile:[0, 0.2, 0.2, 0.2, 0]}, null, 
+                        {shaderLabel:'diffuse', textureLabel:'yellow', segmentCount:50}
+                    );
+                    scene.addObject(placeholder);
+                    
+
                     scene.quickAdd2(tmpl, {x:curs.pos.x, y:0, z:curs.pos.z}, tmpl.actualSuffix, false)
                     .then(function (obj) {
+                        scene.removeObject(placeholder);
                         scene.addObject(obj);
                         scene.current = obj;
                     })
