@@ -125,7 +125,6 @@ window.ExperimentalScene = (function () {
                 {hex: '#00ff00', label: 'lime'},
                 {hex: '#00ff7f', label: 'springgreen'},
                 {hex: '#00ffff', label: 'cyan'},
-                {hex: '#00ffff', label: 'aqua'},
                 {hex: '#191970', label: 'dodgerblue'},
                 {hex: '#20b2aa', label: 'lightseagreen'},
                 {hex: '#228b22', label: 'forestgreen'},
@@ -249,10 +248,6 @@ window.ExperimentalScene = (function () {
         
         var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
             if (btnStatus != 'up') {
-                console.log('Button idx', btnIdx, 'on controller', gamepadIdx, 'was', btnStatus);
-                if (btnIdx == 0) {
-                    console.log('Sector', sector);
-                }
                 if (btnIdx == '2' && btnStatus == 'pressed') {
                     scene.teleportUserToCursor();
                 }
@@ -326,6 +321,19 @@ window.ExperimentalScene = (function () {
         
         scene.addLatheWithFunction(3, function (idx, count) {
             var fract = idx/count;
+            if (fract < 0.2) return fract;
+            else if (fract < 0.3) return 0.2;
+            else if (fract < 0.4) return fract;
+            else if (fract < 0.5) return 0.2;
+            else if (fract < 0.6) return fract;
+            else if (fract < 0.7) return 0.2;
+            else if (fract < 0.8) return fract;
+            else if (fract < 0.9) return 0.2;
+            else return fract;
+        });
+        
+        scene.addLatheWithFunction(3, function (idx, count) {
+            var fract = idx/count;
             if (fract < 0.5) {
                 return 0.5*fract;
             }
@@ -334,6 +342,10 @@ window.ExperimentalScene = (function () {
             }
         });
 
+    }
+    
+    Scene.prototype.clear = function () {
+        this.removeObjectsInGroup('lathes');
     }
     
     Scene.prototype.addLatheWithPoints = function (height, profile) {
