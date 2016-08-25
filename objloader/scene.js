@@ -48,7 +48,7 @@ window.ExperimentalScene = (function () {
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
-    
+        
     Scene.prototype.incrementUIMode = function () {
         var scene = this;
         var DEG=360/(2*Math.PI);
@@ -80,24 +80,35 @@ window.ExperimentalScene = (function () {
                     
                     var tmpl = scene.templatesList2[scene.previewModelIdx];
                     var scaleFactor = 0.1;
-
-                    // scene.quickAdd(tmpl.base, {scale:scaleFactor, x:curs.pos.x, z: curs.pos.z, y:tmplCfg.params.y}, null, false)
                     
-                    /* Add a placeholder */
-                    var placeholder = new FCShapes.LatheShape(
-                        {x:curs.pos.x, y:0, z:curs.pos.z}, 
-                        {height:0.5, profile:[0, 0.2, 0.2, 0.2, 0]}, null, 
-                        {shaderLabel:'diffuse', textureLabel:'yellow', segmentCount:50}
-                    );
-                    scene.addObject(placeholder);
+                    var loc = {x: curs.pos.x, y: 0, z: curs.pos.z};
+                    var placeholder2;
+                    scene.loadMesh(scene._getSuffixedPath(tmpl, tmpl.previewSuffix), tmpl.label+'__preview')
+                    .then(function (mesh) {
+                        placeholder2 = new FCShapes.MeshShape(
+                            mesh, loc,
+                            {scale: 0.07},
+                            null,
+                            {shaderLabel:'diffuse', textureLabel:'yellow'}
+                        );
+                        // placeholder2.drawMode = scene.gl.LINES;
+                        scene.addObject(placeholder2);
+                    });
                     
-
-                    scene.quickAdd2(tmpl, {x:curs.pos.x, y:0, z:curs.pos.z}, tmpl.actualSuffix, false)
-                    .then(function (obj) {
-                        scene.removeObject(placeholder);
-                        scene.addObject(obj);
-                        scene.current = obj;
-                    })
+                    var theObj;
+                    scene.loadMesh(scene._getSuffixedPath(tmpl, tmpl.actualSuffix), tmpl.label)
+                    .then(function (mesh) {
+                        theObj = new FCShapes.MeshShape(
+                            mesh, loc,
+                            {scale: 0.07},
+                            null,
+                            {shaderLabel:'diffuse', textureLabel:'green'}
+                        );
+                        scene.removeObject(placeholder2);
+                        scene.addObject(theObj);
+                        scene.current = theObj;
+                    });
+                    
                 }
             }
         }
@@ -245,20 +256,7 @@ window.ExperimentalScene = (function () {
                     
                 }))
             }
-            
-            
-            
-            // prereqPromises.push(new Promise(function (resolve, reject) {
-            //     OBJ.downloadMeshes({
-            //         ctrl: '/assets/obj/ctrl_lowpoly_body.obj'
-            //     }, function (objs) {
-            //         OBJ.initMeshBuffers(scene.gl, objs.ctrl);
-            //         scene.meshes = objs;
-            //         resolve();
-            //     })
-            //
-            // }));
-            
+                        
             Promise.all(prereqPromises).then(function () {
                 resolve();
             });
@@ -270,110 +268,62 @@ window.ExperimentalScene = (function () {
         
     }
     
-    Scene.prototype.loadObj = function (path, label) {
+    Scene.prototype.loadMesh = function (path, label) {
         var scene = this;
         return new Promise(function (resolve, reject) {
             if (scene.meshes[label]) {
+                console.log('Returning cached mesh', label);
                 resolve(scene.meshes[label]);
             }
             else {
                 FCShapeUtils.loadObj(path)
                 .then(function(mesh) {
+                    console.log('Loaded mesh', label, 'from', path);
                     scene.meshes[label] = mesh;
                     resolve(mesh);
                 });
                 
-                // OBJ.downloadMeshes({
-                //     obj: path
-                // }, function (objs) {
-                //     OBJ.initMeshBuffers(scene.gl, objs.obj);
-                //     scene.meshes[label] = objs.obj;
-                //     resolve(objs.obj);
-                // })
             }
         })
     }
     
-    Scene.prototype.easyObj = function (path, label, params, addToScene) {
-        var p = params || {};
-        var scene = this;
-        if (addToScene === undefined) {
-            addToScene = true;
-        }
-        // var DEG=360/(2*Math.PI);
-        return new Promise(function (resolve, reject) {
-            scene.loadObj(path, label).then(function (mesh) {
-                var o = new LoaderObj(
-                    mesh,
-                    {x: p.x || 0, y: p.y || 0, z: p.z || 2},
-                    {scale: p.scale || 0.05},
-                    {x: p.rx || 0, y: p.ry || 0, z: p.rz || 0},
-                    {shaderLabel: p.shaderLabel || 'diffuse', 
-                     textureLabel: p.textureLabel || 'forestgreen', 
-                     label: label || p.label || path}
-                );
-                if (p.rotate) {
-                    // ...
-                }
-                if (addToScene) {
-                    scene.addObject(o);
-                    scene.current = o;
-                }
-                resolve(o);
-            });
-            
-        })
-    }
     
-    Scene.prototype.ezObj = function (fname, label, params) {
-        if (!label) label = fname;
+    Scene.prototype.showPreviewModel = function (idx) {
         var scene = this;
-        var path;
-        if (fname.indexOf('://') >= 0) {
-            path = fname;
-        }
-        else {
-            path = '/assets/obj/content/'+fname;
-        }
-        scene.easyObj(path, label, params)
-        .then(function (obj) {
-            scene.current = obj;
+        var tmpl = scene.templatesList2[idx];
+        var scaleFactor = 0.01;
+        
+        var newPreview;
+        scene.loadMesh(scene._getSuffixedPath(tmpl, tmpl.previewSuffix), tmpl.label + '__preview')
+        .then(function (mesh) {
+            if (scene.previewModel) {
+                scene.removeObject(scene.previewModel);
+            }
+            
+            newPreview = new FCShapes.MeshShape(mesh, null, {scale:0.01}, null, {shaderLabel:'diffuse', textureLabel:'green'});
+            newPreview.translation.y = 0.00;
+            newPreview.translation.z = -0.04;
+            newPreview.rotation.x = -1.101;
+            newPreview.groupLabel = 'uiChrome';
+            newPreview.behaviours.push(FCUtil.makeGamepadTracker(scene, 0, null));
+            scene.addObject(newPreview);
+            scene.previewModel = newPreview;
+            
         });
         
-    }
-    
-    Scene.prototype.setObjPair = function (fnameBase, suffix1, suffix2) {
-    }
-    
-    
-    Scene.prototype.quickLoad = function (label, params, suffix) {
         
     }
     
-    Scene.prototype.quickAdd = function (label, params, suffix, addToScene) {
-        /* Suffix is handy for loading lowpoly versions */
-        var scene = this;
-        var myCfg = scene.objConfigs[label];
-        var p = params || myCfg.params || {};
-        var objpath = myCfg.path;
-        if (suffix) {
-            objpath = objpath.replace('.obj', '_'+suffix+'.obj');
-        }
-        return scene.easyObj(objpath, myCfg.label+(suffix?'_'+suffix:''), p, addToScene);
-    }
     
-    Scene.prototype.quickAdd2 = function (cfg, params, suffix, addToScene) {
+    
+    Scene.prototype._getSuffixedPath = function (cfg, suffix) {
         var scene = this;
-        var p = cfg.params || params || {};
-        // var objpath = '/assets/obj/content/'+cfg.base;
         var objpath = scene.assetPrefix + cfg.base;
         if (suffix) {
             objpath = objpath.replace('.obj', '_'+suffix+'.obj');
         }
-        return scene.easyObj(objpath, cfg.label+(suffix?'_'+suffix:''), p, addToScene);
-        
+        return objpath;
     }
-    
     
     // console.log('To easily load an unconfigured obj, ')
     
@@ -398,42 +348,11 @@ window.ExperimentalScene = (function () {
         
         
         // http://3dmag.org/en/market/tag/18/
-        
-        
-        scene.templatesList = [
-            {base: 'android-bust'},
-            {base: 'mermaid', previewSuffix:'20k'},
-            {base: 'beachgirl', previewSuffix: '20k'},
-            {base: 'satyr', previewSuffix: '10k'},
-            {base: 'qilinsongbao', previewSuffix: '10k'},
-            {base: 'nymph-in-shell', previewSuffix:'10k'},
-            {base: 'hostess', previewSuffix: '10k'},
-                            
                 
-            // {base: 'nude-almost', previewSuffix:'10k'},
-            // {base: 'nude-classical', previewSuffix: '3k'},
-            // {base: 'nude-figure', previewSuffix: '20k'},
-            // {base: 'nude-vanille'},
-            // {base: 'nude-standing', previewSuffix: '10k'},
-            // {base: 'nude-reclining', previewSuffix: '10k'},
-            // {base: 'nude-kneeling', previewSuffix: '10k'},
-        ];
-        
         scene.templatesList2 = [
             {base: 'buddha.obj', label: 'buddha', previewSuffix:'10k', actualSuffix:'100k'},
-            // {base: 'html5bot.obj', label: 'html5bot', previewSuffix:'5k', actualSuffix:'100k'},
             {base: 'goldfish.obj', label: 'goldfish', previewSuffix:'25k', actualSuffix:'100k'},
-            // {base: 'tiptoes.obj', label: 'tiptoes', previewSuffix:'10k', actualSuffix:'100k'},
-            {base: 'android_girl_bust.obj', label: 'android_girl', previewSuffix:'10k', actualSuffix:''},
-            // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
-            // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
-            // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
-            // {base: '.obj', label: '', previewSuffix:'10k', actualSuffix:'100k'},
             {base: 'mingdog.obj', label: 'mingdog', previewSuffix:'10k', actualSuffix:'100k'},
-            // {base: 'satyr.obj', label: 'satyr', previewSuffix:'10k', actualSuffix:'100k'},
-            // {base: 'nymph_in_shell.obj', label: 'nymph_in_shell', previewSuffix:'10k', actualSuffix:'100k'}
-            
-            
         ]
         
         /* Let's revamp the loader but let's not do it just now */
@@ -441,49 +360,6 @@ window.ExperimentalScene = (function () {
         //     {label: 'goldfish-statue', group: 'sculpture', meshbase: '/assets/obj/content/goldfish.obj'}
         // ]
         
-        var addCfg = function (label, path, params) {
-            scene.objConfigs[label] = {label: label, path: path, params: params};
-            var whichGrp;
-            if (label.indexOf('nude') == 0) {
-                whichGrp = 'nude';
-            }
-            else {
-                whichGrp = 'general';
-            }
-            var myGrp = scene.modelGroups[whichGrp];
-            // myGrp.items.push()
-        }
-        
-        
-        // if (myCfg.rotate) {
-        //     mdl.behaviours.push(function (drawable, timePoint) {
-        //         drawable.currentOrientation = {x:0.0, y:Math.PI*2*(timePoint/7000), z:0.0};
-        //     });
-        // }
-        
-        
-        addCfg('nymph-in-shell', '/assets/obj/content/nymph_in_shell.obj', {scale:0.11, y:2.25, z:3.5, ry:180/DEG, textureLabel:'concrete01'});
-        addCfg('android-bust', '/assets/obj/content/bust_of_android_girl.obj', {scale: 0.0016, y: 1.3});
-        addCfg('satyr', '/assets/obj/content/satyr.obj', {scale:0.02, x:2, y:0, z:4, ry:-3.96});
-        addCfg('qilinsongbao', '/assets/obj/content/qilinsongbao.obj', {scale: 0.014, ry:-3.32, z:3});
-        addCfg('hostess', '/assets/obj/content/woman.obj', {scale:1.0, ry:180/DEG});
-        addCfg('mermaid', '/assets/obj/content/mermaid.obj', {scale:0.005, ry: 2.27, z:2.5});
-
-        // addCfg('beachgirl', '/assets/obj/content/beach_girl.obj', {scale:0.43, ry:-3.41, z:3});
-        // addCfg('nude-classical', '/assets/obj/content/nude_classical_1.obj', {scale:0.127, ry:0.687});
-        // addCfg('nude-figure', '/assets/obj/content/figure_posing_nude.obj', {scale:0.028, ry:2.39});
-        // addCfg('nude-vanille', '/assets/obj/content/nude_vanille.obj', {scale:0.014, ry:2.71});
-        // addCfg('nude-standing', '/assets/obj/content/nude_woman.obj', {scale: 0.001});
-        // addCfg('nude-reclining', '/assets/obj/content/nude_reclining.obj', {scale: 0.002, y:-0.65, z:1.8, ry:180/DEG});
-        // addCfg('nude-kneeling', '/assets/obj/content/kneeling.obj', {scale:0.013, ry:2.1/RAD});
-        // addCfg('nude-almost', '/assets/obj/content/almost_nude.obj', {scale:0.01, ry:2.9});
-
-        var contentdir = '/assets/obj/content/';
-        // addCfg('', contentdir+'');
-        // addCfg('', contentdir+'');
-        // addCfg('', contentdir+'');
-        // addCfg('', contentdir+'');
-                
         /* Floor */
         var floor = new FCShapes.WallShape(
             {x: 0, z: 0, y: -0.02},
@@ -639,36 +515,6 @@ window.ExperimentalScene = (function () {
         
     }
     
-    Scene.prototype.showPreviewModel = function (idx) {
-        var scene = this;
-        var tmpl = scene.templatesList2[idx];
-        // var tmplCfg = scene.objConfigs[tmpl.base];
-        // console.log(tmpl, tmplCfg);
-        // console.log(tmplCfg.params.scale);
-        // var previewFactor = 9.0;
-        // var scaleFactor = tmplCfg.params.scale/previewFactor;
-        var scaleFactor = 0.01;
-        scene.quickAdd2(tmpl, {scale: scaleFactor}, tmpl.previewSuffix, false)
-        .then(function (obj) {
-            if (scene.previewModel) {
-                scene.removeObject(scene.previewModel);
-            }
-            // var ytrans = 0.07+((tmplCfg.params.y || 0) / previewFactor);
-            // console.log(ytrans);
-            // obj.translation.y = 0.01+(tmplCfg.params.y * tmplCfg.params.scale);
-            // obj.translation.y = 0.05;
-            
-            // obj.translation.y = ytrans - 0.1;
-            obj.translation.y = 0.00;
-            obj.translation.z = -0.04;
-            obj.rotation.x = -1.101;
-            obj.groupLabel = 'uiChrome';
-            obj.behaviours.push(FCUtil.makeGamepadTracker(scene, 0, null));
-            scene.addObject(obj);
-            scene.previewModel = obj;
-        })
-        
-    }
 
     return Scene;
 })();
