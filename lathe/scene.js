@@ -69,6 +69,23 @@ LatheShape.prototype.divulge = function () {
 }
 
 
+var _mkGridAssigner = function (x, z, w, d, u) {
+    var idx = 0;
+    var getNext = function () {
+        return {x: x+(u*idx++), y:0, z:z};
+    }
+    return getNext;
+}
+
+var _mkColourFetcher = function (scene) {
+    var idx = 1;
+    var getNext = function () {
+        return scene.texColours[idx++%scene.texColours.length];
+    }
+    return getNext;
+}
+
+
 window.ExperimentalScene = (function () {
     "use strict";
     
@@ -80,24 +97,15 @@ window.ExperimentalScene = (function () {
         scene.meshes = {};
         scene.texColours = [];
         
-        var mkGridAssigner = function (x, z, w, d, u) {
-            var idx = 0;
-            var getNext = function () {
-                return {x: x+(u*idx++), y:0, z:z};
-            }
-            return getNext;
-        }
-        scene.nextLocation = mkGridAssigner(3, 5, 0, 0, -2);
+        scene.nextLocation = _mkGridAssigner(3, 5, 0, 0, -2);
+        scene.nextColour = _mkColourFetcher(scene);
         
-        var mkColourFetcher = function () {
-            var idx = 1;
-            var getNext = function () {
-                return scene.texColours[idx++%scene.texColours.length];
+        scene.cameras = {
+            cam1: {
+                position: {x:0.4, y:1, z:1.6},
+                orientation: {x:0.22, y:2.68}
             }
-            return getNext;
-        }
-        scene.nextColour = mkColourFetcher();
-        
+        };
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -120,20 +128,21 @@ window.ExperimentalScene = (function () {
             var texColors = [
                 {hex: '#00007f', label: 'navy'},
                 {hex: '#0000ff', label: 'blue'},
-                {hex: '#007f00', label: 'green'},
                 {hex: '#007f7f', label: 'teal'},
+                {hex: '#ffa500', label: 'orange'},
                 {hex: '#00ff00', label: 'lime'},
+                {hex: '#9900ff', label: 'purplle'},
+                {hex: '#4169e1', label: 'royalblue'},
+                {hex: '#191970', label: 'dodgerblue'},
+                {hex: '#007f00', label: 'green'},
                 {hex: '#00ff7f', label: 'springgreen'},
                 {hex: '#00ffff', label: 'cyan'},
-                {hex: '#191970', label: 'dodgerblue'},
                 {hex: '#20b2aa', label: 'lightseagreen'},
                 {hex: '#228b22', label: 'forestgreen'},
                 {hex: '#2e8b57', label: 'seagreen'},
-                {hex: '#4169e1', label: 'royalblue'},
                 {hex: '#ff0000', label: 'red'},
-                {hex: '#ff00ff', label: 'magenta'},
-                {hex: '#ffa500', label: 'orange'},
                 {hex: '#ffff00', label: 'yellow'},
+                {hex: '#ff00ff', label: 'magenta'},
                 {hex: '#000000', label: 'black'},
                 {hex: '#888888', label: 'gray'},
                 {hex: '#ffffff', label: 'white'}
@@ -302,6 +311,11 @@ window.ExperimentalScene = (function () {
             // return 0.3+(0.5*Math.sin(5*Math.PI*(idx/count)));
             return 0.6-(0.2*Math.sin(5*Math.PI*(idx/count)));
         });
+
+        scene.addLatheWithFunction(3, function (idx, count) {
+            return 0.3+(0.5*Math.sin(5*Math.PI*(idx/count)));
+            // return 0.6-(0.2*Math.sin(5*Math.PI*(idx/count)));
+        });
                 
         scene.addLatheWithFunction(3, function (idx, count) {
             var fract = idx/count;
@@ -309,6 +323,12 @@ window.ExperimentalScene = (function () {
             else if (fract < 0.7) return 0.3;
             else return 0.4;
         });
+
+        scene.addLatheWithFunction(2.5, function (idx, count) {
+            var fract = idx/count;
+            return Math.ceil((1-fract)*5)/7;
+        });
+
         
         scene.addLatheWithFunction(3, function (idx, count) {
             var fract = idx/count;
@@ -346,6 +366,7 @@ window.ExperimentalScene = (function () {
     
     Scene.prototype.clear = function () {
         this.removeObjectsInGroup('lathes');
+        this.nextLocation = _mkGridAssigner(3, 5, 0, 0, -2);
     }
     
     Scene.prototype.addLatheWithPoints = function (height, profile) {
@@ -369,6 +390,7 @@ window.ExperimentalScene = (function () {
             {shaderLabel:'diffuse', texture:scene.nextColour(), verticalSegmentCount:120, groupLabel:'lathes',
             profileSampler: sampler}
         );
+        // lathe.drawMode = scene.gl.LINES;
         scene.addObject(lathe);
     }
 
