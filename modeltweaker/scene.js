@@ -1,3 +1,5 @@
+var DEG=360/(2*Math.PI);
+
 window.ExperimentalScene = (function () {
     "use strict";
     
@@ -12,6 +14,8 @@ window.ExperimentalScene = (function () {
         this.currentModelIdx = null;
         
         this.uiMode = 0;
+        
+        this.trackpadMode = 0;
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -149,6 +153,81 @@ window.ExperimentalScene = (function () {
         this.moveRaftAndPlayerTo(curs.pos);
     }
     
+    Scene.prototype.makeButtonHandler = function () {
+        var scene = this;
+        /* Button handler for the controllers. The default button handler does 2 things: */
+        /* 1). teleport to cursor location when grip button is pressed */
+        /* 2). Output button status info when any button is pressed */
+        /* Buttons are - 0: trackpad, 1: trigger 2: grip, 3: menu */
+        var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
+            if (btnStatus != 'up') {
+                console.log('Button idx', btnIdx, 'on controller', gamepadIdx, 'was', btnStatus);
+                
+                if (btnIdx == '0') {
+                    if (sector == 'center' && btnStatus == 'released') {
+                        scene.trackpadMode = ++scene.trackpadMode%2;
+                        return;
+                    }
+                    switch (scene.trackpadMode) {
+                    case 0:
+                        if (sector == 'n') {
+                            scene.currentObject.scaleFactor *= 1.005;
+                        }
+                        else if (sector == 's') {
+                            scene.currentObject.scaleFactor *= 0.995;
+                        }
+                        else if (sector == 'w') {
+                            scene.currentObject.orientation.y += 0.6/DEG;
+                        }
+                        else if (sector == 'e') {
+                            scene.currentObject.orientation.y -= 0.6/DEG;
+                        }
+                        break;
+                    case 1:
+                        if (sector == 'n' && btnStatus == 'released') {
+                            scene.currentObject.orientation.x -= 15/DEG;
+                        }
+                        else if (sector == 's' && btnStatus == 'released') {
+                            scene.currentObject.orientation.x += 15/DEG;
+                        }
+                        else if (sector == 'w' && btnStatus == 'released') {
+                            scene.currentObject.orientation.z += 15/DEG;
+                        }
+                        else if (sector == 'e' && btnStatus == 'released') {
+                            scene.currentObject.orientation.z -= 15/DEG;
+                        }
+                        break;
+                    }
+                    
+                }
+                
+                /* Trigger pressed. "Grab" or "release" the current object and allow it to be repositioned */
+                else if (btnIdx == '1') {
+                    
+                    if (btnStatus == 'pressed') {
+                        scene.grabCurrentObject(gamepadIdx);
+                    }
+                    else if (btnStatus == 'released') {
+                        scene.releaseCurrentObject();
+                    }
+                    
+                    
+                    
+                }
+                
+                
+                
+                if (btnIdx == '2' && btnStatus == 'pressed') {
+                    scene.teleportUserToCursor();
+                }
+                if (btnIdx == '3' && btnStatus == 'pressed') {
+                    scene.loadNextModel()
+                }
+            }
+        };
+        return buttonHandler;
+    }
+    
     Scene.prototype.setupScene = function () {
         var scene = this;
         var DEG=360/(2*Math.PI);
@@ -212,60 +291,8 @@ window.ExperimentalScene = (function () {
             blueColor: scene.addTextureFromColor({r:0.2, g:0.6, b:0.9})
         };
         
-        /* Button handler for the controllers. The default button handler does 2 things: */
-        /* 1). teleport to cursor location when grip button is pressed */
-        /* 2). Output button status info when any button is pressed */
-        /* Buttons are - 0: trackpad, 1: trigger 2: grip, 3: menu */
-        var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
-            if (btnStatus != 'up') {
-                console.log('Button idx', btnIdx, 'on controller', gamepadIdx, 'was', btnStatus);
-                
-                if (btnIdx == '0' && btnStatus == 'held') {
-                    if (sector == 'n') {
-                        scene.currentObject.scaleFactor *= 1.005;
-                    }
-                    else if (sector == 's') {
-                        scene.currentObject.scaleFactor *= 0.995;
-                    }
-                    else if (sector == 'w') {
-                        scene.currentObject.orientation.y += 0.6/DEG;
-                    }
-                    else if (sector == 'e') {
-                        scene.currentObject.orientation.y -= 0.6/DEG;
-                    }
-                }
-                
-                /* Trigger pressed. "Grab" or "release" the current object and allow it to be repositioned */
-                else if (btnIdx == '1') {
-                    
-                    if (btnStatus == 'pressed') {
-                        scene.grabCurrentObject(gamepadIdx);
-                    }
-                    else if (btnStatus == 'released') {
-                        scene.releaseCurrentObject();
-                    }
-                    // var curs = scene.getObjectByLabel('cursor');
-                    // scene.current.pos = {
-                    //     x: curs.pos.x,
-                    //     y: scene.current.pos.y,
-                    //     z: curs.pos.z
-                    // };
-                    
-                    
-                    
-                }
-                
-                
-                
-                if (btnIdx == '2' && btnStatus == 'pressed') {
-                    scene.teleportUserToCursor();
-                }
-                if (btnIdx == '3' && btnStatus == 'pressed') {
-                    scene.loadNextModel()
-                }
-            }
-        };
-        
+
+        var buttonHandler = scene.makeButtonHandler();
         /* Controller models are added just like any model in the scene; to make them track the controller, */
         /* a special behaviour is added. */
         /* Controller 0 (the green one) also has command of the cursor (having the cursor track both controllers */
@@ -317,15 +344,35 @@ window.ExperimentalScene = (function () {
         /* cancel those out to keep the object's position from suddenly changing as it is grabbed. */
         scene.objectIsGrabbed = true;
         var obj = scene.currentObject;
-        var hand = scene.playerSpatialState.hands[0];
-        obj.translation.x += -1*hand.pos.x;
-        obj.translation.y += -1*hand.pos.y;
-        obj.translation.z += -1*hand.pos.z;
+        var hand = scene.playerSpatialState.hands[gamepadIdx]; //<<< watch out for this
+        // obj.translation.x += -1*hand.pos.x;
+        // obj.translation.y += -1*hand.pos.y;
+        // obj.translation.z += -1*hand.pos.z;
+
+
         // obj.rotation.x = -1*hand.ori.x;
         // obj.rotation.y = -1*hand.ori.y;
         // obj.rotation.z = -1*hand.ori.z;
         // obj.ori
-        obj.behaviours.push(FCUtil.makeGamepadTracker(scene, gamepadIdx));
+
+        // obj.behaviours.push(FCUtil.makeGamepadTracker(scene, gamepadIdx));
+        
+        var mkTranslater = function (initial) {
+            console.log(initial);
+            var tFn = function (drawable, timepoint) {
+                var hand = scene.playerSpatialState.hands[gamepadIdx];
+                var mat = mat4.create();
+                var trans = vec3.fromValues(hand.pos.x-initial.x, hand.pos.y-initial.y, hand.pos.z-initial.z);
+                mat4.fromTranslation(mat, trans);
+                drawable.matrix = mat;
+            }
+            return tFn;
+        }
+        
+        obj.behaviours.push(mkTranslater({
+            x:hand.pos.x, 
+            y:hand.pos.y, 
+            z:hand.pos.z}));
     }
     
     Scene.prototype.quatToEuler = function (quat) {
@@ -395,7 +442,7 @@ window.ExperimentalScene = (function () {
         
         /* Turns out converting a quaternion to a set of angles is fraught with complexity. SO let's just */
         /* store the quat for later use. If you can't beat 'em, join 'em, right? */
-        obj.rotationQuaternion = rot;
+        // obj.rotationQuaternion = rot;
         
         // var vvv = vec3.fromValues(1,1,1);
         // var a = quat.getAxisAngle(vvv, rot);
