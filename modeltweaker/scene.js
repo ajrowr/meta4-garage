@@ -11,11 +11,28 @@ window.ExperimentalScene = (function () {
         this.modelList = null;
         
         this.currentObject = null;
-        this.currentModelIdx = null;
+        //21 isn't too bright but is sideways - looks basically right
+        //39 is perfect
+        //48 nice but dim
+        //25 is a good example of broken
+        //50 very nice example of broken and just generally very nice tbh
+        //45?
+        //4 -> towel
+        this.currentModelIdx = 6;//null;
+        this.autoLoadIdx = 6;
         
         this.uiMode = 0;
         
         this.trackpadMode = 0;
+        
+        this.cameras = {
+            cam1: {
+                position: {x:0, y:1, z:-1.5},
+                orientation: {x:0, y:Math.PI}
+            }
+        }
+        
+        
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -23,21 +40,265 @@ window.ExperimentalScene = (function () {
     Scene.prototype.loadModelList = function () {
         var scene = this;
         var modelListUrl = 'http://meshbase.io.codex.cx/mesher.pycg?mode=detail';
-        var xh = new XMLHttpRequest();
-        xh.open('GET', modelListUrl, true);
-        xh.responseType = 'json';
-        xh.onreadystatechange = function () {
-            if (xh.readyState == 4) {
-                console.log(xh.response);
-                scene.modelList = xh.response;
+        return new Promise(function (resolve, reject) {
+            var xh = new XMLHttpRequest();
+            xh.open('GET', modelListUrl, true);
+            xh.responseType = 'json';
+            xh.onreadystatechange = function () {
+                if (xh.readyState == 4) {
+                    console.log(xh.response);
+                    scene.modelList = xh.response;
+                    resolve();
+                }
             }
-        }
-        
-        xh.send();
+            xh.send();
+            
+        });
     }
     
     Scene.prototype.showMenu = function () {
         
+        
+    }
+    
+    Scene.prototype.synthesizeNormals = function (mesh) {
+        /* Take 9 coords across 3 points, calculate direction vectors and dot products, overwrite the normals already there */
+        var vv = mesh.vertices;
+        var nn = mesh.vertexNormals;
+        for (var i=0; i<vv.length/9; i++) {
+            var baseIdx = 9*i;
+            var v1 = vec3.fromValues(vv[baseIdx], vv[baseIdx+1], vv[baseIdx+2]);
+            var v2 = vec3.fromValues(vv[baseIdx+3], vv[baseIdx+4], vv[baseIdx+5]);
+            var v3 = vec3.fromValues(vv[baseIdx+6], vv[baseIdx+7], vv[baseIdx+8]);
+
+            //
+            // var vd1 = vec3.create();
+            // vec3.sub(vd1, v1, v2);
+            // var vd2 = vec3.create();
+            // vec3.sub(vd2, v2, v3);
+            // var norm = vec3.create();
+            // vec3.cross(norm, vd1, vd2);
+            //
+            // var winding;
+            // var c1 = vec3.create(), c2 = vec3.create(), c3 = vec3.create();
+            // vec3.sub(c1, v2, v1);
+            // vec3.sub(c2, v3, v1);
+            // vec3.cross(c3, c1, c2);
+            //
+
+            // console.log(c3);
+            // v2 - v1 X v3 - v1
+            
+            var X=0,Y=1,Z=2;
+            
+            var u = vec3.create();
+            vec3.sub(u, v2, v1);
+            var v = vec3.create();
+            vec3.sub(v, v3, v1);
+            var norm = vec3.create();
+            // vec3.cross(norm, vd1, vd2);
+            norm[X] = u[Y]*v[Z] - u[Z]*v[Y];
+            norm[Y] = u[Z]*v[X] - u[X]*v[Z];
+            norm[Z] = u[X]*v[Y] - u[Y]*v[X];
+            
+            
+            var winding;
+            var c1 = vec3.create(), c2 = vec3.create(), c3 = vec3.create();
+            vec3.sub(c1, v2, v1);
+            vec3.sub(c2, v3, v1);
+            vec3.cross(c3, c1, c2);
+            // console.log(c3)
+            
+            
+            vec3.normalize(norm, c3);
+            nn[baseIdx] = 1*norm[0];
+            nn[baseIdx+1] = 1*norm[1];
+            nn[baseIdx+2] = 1*norm[2];
+            nn[baseIdx+3] = 1*norm[0];
+            nn[baseIdx+4] = 1*norm[1];
+            nn[baseIdx+5] = 1*norm[2];
+            nn[baseIdx+6] = 1*norm[0];
+            nn[baseIdx+7] = 1*norm[1];
+            nn[baseIdx+8] = 1*norm[2];
+        }
+        
+    }
+    
+    Scene.prototype.synthesizeNormals = function (mesh) {
+        /* Take 9 coords across 3 points, calculate direction vectors and dot products, overwrite the normals already there */
+        var vv = mesh.vertices;
+        var vi = mesh.indices;
+        var nn = mesh.vertexNormals;
+        for (var i=0; i<vi.length/3; i++) {
+            var baseIdx = 3*i;
+            var idx1 = vi[baseIdx], idx2 = vi[baseIdx+1], idx3 = vi[baseIdx+2];
+            
+            var v1 = vec3.fromValues(vv[3*idx1], vv[(3*idx1)+1], vv[(3*idx1)+2]);
+            var v2 = vec3.fromValues(vv[3*idx2], vv[(3*idx2)+1], vv[(3*idx2)+2]);
+            var v3 = vec3.fromValues(vv[3*idx3], vv[(3*idx3)+1], vv[(3*idx3)+2]);
+
+            //
+            // var vd1 = vec3.create();
+            // vec3.sub(vd1, v1, v2);
+            // var vd2 = vec3.create();
+            // vec3.sub(vd2, v2, v3);
+            // var norm = vec3.create();
+            // vec3.cross(norm, vd1, vd2);
+            //
+            // var winding;
+            // var c1 = vec3.create(), c2 = vec3.create(), c3 = vec3.create();
+            // vec3.sub(c1, v2, v1);
+            // vec3.sub(c2, v3, v1);
+            // vec3.cross(c3, c1, c2);
+            //
+
+            // console.log(c3);
+            // v2 - v1 X v3 - v1
+            
+            var X=0,Y=1,Z=2;
+            
+            var u = vec3.create();
+            vec3.sub(u, v2, v1);
+            var v = vec3.create();
+            vec3.sub(v, v3, v1);
+            var norm = vec3.create();
+            // vec3.cross(norm, vd1, vd2);
+            norm[X] = u[Y]*v[Z] - u[Z]*v[Y];
+            norm[Y] = u[Z]*v[X] - u[X]*v[Z];
+            norm[Z] = u[X]*v[Y] - u[Y]*v[X];
+            
+            // var winding;
+            // var c1 = vec3.create(), c2 = vec3.create(), c3 = vec3.create();
+            // vec3.sub(c1, v2, v1);
+            // vec3.sub(c2, v3, v1);
+            // vec3.cross(c3, c1, c2);
+            // console.log(c3)
+            
+            
+            vec3.normalize(norm, norm);
+            // console.log(norm);
+            // nn[baseIdx] = 1*norm[0];
+            // nn[baseIdx+1] = 1*norm[1];
+            // nn[baseIdx+2] = 1*norm[2];
+            // nn[baseIdx+3] = 1*norm[0];
+            // nn[baseIdx+4] = 1*norm[1];
+            // nn[baseIdx+5] = 1*norm[2];
+            // nn[baseIdx+6] = 1*norm[0];
+            // nn[baseIdx+7] = 1*norm[1];
+            // nn[baseIdx+8] = 1*norm[2];
+            
+            var f = 1;
+            nn[3*idx1] = f*norm[0]; nn[(3*idx1)+1] = f*norm[1]; nn[(3*idx1)+2] = f*norm[2];
+            nn[3*idx2] = f*norm[0]; nn[(3*idx2)+1] = f*norm[1]; nn[(3*idx2)+2] = f*norm[2];
+            nn[3*idx3] = f*norm[0]; nn[(3*idx3)+1] = f*norm[1]; nn[(3*idx3)+2] = f*norm[2];
+        }
+        
+    }
+    
+    
+    Scene.prototype.analyseMesh = function (mesh) {
+        var minX=Infinity, minY=Infinity, minZ=Infinity;
+        var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity;
+        var vv = mesh.vertices;
+        for (var i=0; i<vv.length/3; i++) {
+            var baseIdx = i*3;
+            var myX = vv[baseIdx], myY = vv[baseIdx+1], myZ = vv[baseIdx+2];
+            minX = Math.min(minX, myX); maxX = Math.max(maxX, myX);
+            minY = Math.min(minY, myY); maxY = Math.max(maxY, myY);
+            minZ = Math.min(minZ, myZ); maxZ = Math.max(maxZ, myZ);
+        }
+        var xRange = maxX - minX, yRange = maxY - minY, zRange = maxZ - minZ;
+        var fitInDimension = 2.0;
+        var suggestedScale = Math.min(fitInDimension/xRange, fitInDimension/yRange, fitInDimension/zRange);
+        
+        var suggX = maxX - (xRange/2);
+        var suggZ = maxZ - (zRange/2);
+        
+        var nn = mesh.vertexNormals;
+        var normLengths = [];
+        for (var i=0; i<nn.length/3; i++) {
+            var baseIdx = i*3;
+            // var myX = nn[baseIdx], myY = nn[baseIdx+1], myZ = nn[baseIdx+2];
+            var norm = vec3.fromValues(nn[baseIdx], nn[baseIdx+1], nn[baseIdx+2]);
+            normLengths.push(vec3.length(norm));
+        }
+        
+        
+        return {minX:minX, maxX:maxX, minY:minY, maxY:maxY, minZ:minZ, maxZ:maxZ, 
+            suggestedScale:suggestedScale,
+            normLengths: normLengths,
+            suggestedScaledTranslate: {
+                y: -1*(minY*suggestedScale),
+                x: -1*suggX*suggestedScale,
+                z: -1*suggZ*suggestedScale
+            },
+            suggestedTranslate: {
+                y: -1*(minY),
+                x: -1*suggX,
+                z: -1*suggZ
+            }
+        };
+    }
+    
+    /* Perform a "hard translate" on a mesh by applying a fixed shunt factor to its coords */
+    Scene.prototype.shuntMesh = function (mesh, shunt) {
+        console.log('Shunting', shunt)
+        var vv = mesh.vertices;
+        for (var i=0; i<vv.length/3; i++) {
+            var baseIdx = i*3;
+            vv[baseIdx] += shunt.x || 0.0;
+            vv[baseIdx+1] += shunt.y || 0.0;
+            vv[baseIdx+2] += shunt.z || 0.0;
+        }
+    }
+    
+    Scene.prototype.loadModelAtIndex = function (idx) {
+        var scene = this;
+        var modelInf = scene.modelList.files[idx];
+        
+        var meshUrl = 'http://meshbase.io.codex.cx/mesher.pycg/'+modelInf.name+'?mode=mesh';
+        FCShapeUtils.loadMesh(meshUrl, modelInf.binary)
+        .then(function (mesh) {
+            console.log('Loaded', modelInf.name);
+            if (scene.currentObject) {
+                var cull = scene.currentObject;
+                scene.removeObject(cull);
+                if (cull.mesh) {
+                    scene.gl.deleteBuffer(cull.mesh.vertexBuffer);
+                    scene.gl.deleteBuffer(cull.mesh.indexBuffer);
+                    scene.gl.deleteBuffer(cull.mesh.textureBuffer);
+                    scene.gl.deleteBuffer(cull.mesh.normalBuffer);
+                }
+                
+            }
+            var inf = scene.analyseMesh(mesh);
+            scene.shuntMesh(mesh, inf.suggestedTranslate);
+            /* If the vert normals don't seem to be valid, try and synth them. Doesn't really work that well but at */
+            /* least you should be able to get a rough idea of what you're looking at so it's arguably better than nothing */
+            if (!mesh.vertexNormals[0]) {
+                console.log('Mesh is missing normals, synthesizing..');
+                scene.synthesizeNormals(mesh);
+            }
+            // scene.synthesizeNormals(mesh);
+            console.log(inf);
+            var halfTurnY = {x:0, y:Math.PI, z:0};
+            scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:inf.suggestedScale}, null, {shaderLabel:'diffuse', textureLabel:'white'});
+            // scene.currentObject.translation.y = inf.suggestedScaledTranslateY;
+            // scene.currentObject.translation.x = inf.suggestedScaledTranslateX;
+            // scene.currentObject.translation.z = inf.suggestedScaledTranslateZ;
+            
+            // scene.currentObject.enableDebug = true;
+            // scene.currentObject.DEBUGGING = true;
+            
+            // scene.currentObject.scratchPad = {lastReportAt:0};
+            // scene.currentObject.behaviours.push(function (drawable, timepoint) {
+            //     if ((timepoint - drawable.scratchPad.lastReportAt) > 1000) {
+            //         console.log(drawable.debug);
+            //         drawable.scratchPad.lastReportAt = timepoint;
+            //     }
+            // });
+            scene.addObject(scene.currentObject);
+        });
         
     }
     
@@ -49,19 +310,8 @@ window.ExperimentalScene = (function () {
         }
         
         var idx = scene.currentModelIdx++;
-        var modelInf = scene.modelList.files[idx];
-        
-        var meshUrl = 'http://meshbase.io.codex.cx/mesher.pycg/'+modelInf.name+'?mode=mesh';
-        FCShapeUtils.loadMesh(meshUrl, modelInf.binary)
-        .then(function (mesh) {
-            console.log('Loaded', modelInf.name);
-            if (scene.currentObject) {
-                scene.removeObject(scene.currentObject);
-            }
-            scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:0.0025}, null, {shaderLabel:'diffuse', textureLabel:'green'});
-            scene.addObject(scene.currentObject);
-        });
-        
+        scene.loadModelAtIndex(idx);
+        console.log('Loading model with idx', idx);
         
     }
     
@@ -128,7 +378,7 @@ window.ExperimentalScene = (function () {
             /* Load shaders */
             var shaders = [
                 {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
-                {srcFs: '//assets.meta4vr.net/shader/diffuse2.fs', srcVs: '//assets.meta4vr.net/shader/diffuse2.vs', label: 'diffuse'}
+                {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'}
             ];
             for (var i=0; i<shaders.length; i++) {
                 var myShader = shaders[i];
@@ -330,7 +580,11 @@ window.ExperimentalScene = (function () {
         scene.addObject(ctrl1);
         
         
-        scene.loadModelList();
+        scene.loadModelList()
+        .then(function () {
+            if (scene.autoLoadIdx)
+            scene.loadModelAtIndex(scene.autoLoadIdx);
+        });
         
         
     }
