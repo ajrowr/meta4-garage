@@ -8,12 +8,30 @@ var CylinderArranger = function (params) {
     this.rowHeight = p.rowHeight || 1;
     this.offset = {x:p.offset.x||0.0, y:p.offset.y||0.0, z:p.offset.z||0.0};
     
-    this.arrangingIdx = 0;
+    this.rows = p.rows || 4;
+    this.columns = p.columns || 8;
+    
+    this._arrangingIdx = 0;
+    
+    this.currentRange = {
+        start:0, end:32
+    }
+    this.selectedIdx = 0;
+    this.selectCaret = {row:1,column:1};
+    this.items = [];
+    this.specialSelection = null;
+    this.specialItems = {PAGE_LEFT: null, PAGE_RIGHT: null};
+    
+}
+
+CylinderArranger.prototype.getSelectedIndex = function () {
+    if (this.specialSelection) return null;
+    else return (this.columns * this.selectCaret.row) + this.selectCaret.column;
 }
 
 CylinderArranger.prototype.nextPlacement = function () {
     var arranger = this;
-    var myIdx = this.arrangingIdx++;
+    var myIdx = this._arrangingIdx++;
     var row = Math.floor(myIdx / arranger.perRow);
     var idxInRow = myIdx % arranger.perRow;
     var itemAngle = Math.PI+(((Math.PI)/arranger.perRow) * idxInRow);
@@ -29,6 +47,60 @@ CylinderArranger.prototype.nextPlacement = function () {
             z: 0
         }
     }
+}
+
+CylinderArranger.prototype.interactWithCurrentSelection = function (interaction) {
+    
+}
+
+CylinderArranger.prototype.moveSelectCaret = function (direction) {
+
+    /* Deselect current */
+    var currentSelection;
+    if (this.specialSelection) {
+        currentSelection = this.specialItems[this.specialSelection];
+    }
+    else {
+        currentSelection = this.items[this.getSelectedIndex()];
+    }
+    if (currentSelection) currentSelection.interact('deselect');
+
+    switch (direction) {
+    case 'UP':
+        this.selectCaret.row++;
+        break;
+    case 'DOWN':
+        this.selectCaret.row--;
+        break;
+    case 'LEFT':
+        this.selectCaret.column--;
+        break;
+    case 'RIGHT':
+        this.selectCaret.column++;
+        break;
+    }
+    
+    
+    
+    /* Check bounds */
+    this.specialSelection = null;
+    if (this.selectCaret.row <= -1) this.selectCaret.row = 0;
+    if (this.selectCaret.row >= this.rows) this.selectCaret.row = this.rows - 1;
+    if (this.selectCaret.column < -1) this.selectCaret.column = -1;
+    if (this.selectCaret.column > this.columns) this.selectCaret.column = this.columns;
+    if (this.selectCaret.column == -1) this.specialSelection = 'PAGE_LEFT';
+    if (this.selectCaret.column == this.columns) this.specialSelection = 'PAGE_RIGHT';
+    
+    /* Highlight new selection */
+    var newSelection;
+    if (this.specialSelection) {
+        newSelection = this.specialItems[this.specialSelection];
+    }
+    else {
+        newSelection = this.items[this.getSelectedIndex()];
+    }
+    newSelection.interact('select');
+    
 }
 
 
@@ -61,6 +133,11 @@ window.ExperimentalScene = (function () {
         // this.autoLoadIdx = 8;
         
         
+        this.currentItem = {
+            model: null,
+            idx: null
+        }
+        
         this.uiMode = 0;
         
         this.trackpadMode = 0;
@@ -72,10 +149,21 @@ window.ExperimentalScene = (function () {
         ];
         
         this.cameras = {
-            cam1: {
+            cam1x: {
                 position: {x:0, y:1, z:-1.5},
                 orientation: {x:0, y:Math.PI}
+            },
+            cam1: {
+                position: {x:0, y:1.5, z:1.5},
+                orientation: {x:0, y:0, z:0}
             }
+        }
+        
+        this.prerequisites = {
+            shaders: [],
+            meshes: [],
+            textures: [],
+            
         }
         
         this.previews = [];
@@ -88,7 +176,7 @@ window.ExperimentalScene = (function () {
         this.modelUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=mesh';
         this.statusIndicator = null;
         
-        
+        this.previewArranger = null;
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -133,6 +221,7 @@ window.ExperimentalScene = (function () {
         var scene = this;
         var prevIdx = 0;
         var arranger = new CylinderArranger({rowHeight: 0.6, perRow: 8, offset:{z:-0.3*scene.stageParams.sizeZ}});
+        scene.previewArranger = arranger;
         
         /* TODO remove items from scene.previews when changing */
         for (var i=100; i<Math.min(scene.modelList.files.length, 132); i++) {
@@ -141,7 +230,7 @@ window.ExperimentalScene = (function () {
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
                 var modelName = myInf.name;
                 console.log(modelName);
-                var nowt = function (previuUrl, modelInf) {
+                var nowt = function (previuUrl, modelInf, modelIdx) {
                     FCShapeUtils.loadMesh(previuUrl)
                     .then(function (mesh) {
                         // var inf = FCMeshTools.analyseMesh(mesh);
@@ -151,14 +240,53 @@ window.ExperimentalScene = (function () {
                         var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:0.25}, placement.orientation,
                             {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'}
                         );
+                        newPrev.metadata.name = modelInf.name;
+                        newPrev.metadata.itemIdx = modelIdx;
+                        newPrev.interactions['select'] = function (drawable, p) {
+                            drawable.textureLabel = 'cyan';
+                            drawable.behaviours.push(function (dr, timePoint) {
+                                dr.orientation = {x:0,y:Math.PI*(timePoint/1700), z:0};
+                            });
+                        }
+                        newPrev.interactions['deselect'] = function (drawable, p) {
+                            drawable.textureLabel = 'white';
+                            drawable.behaviours = [];
+                        }
+                        newPrev.interactions['activate'] = function (drawable, p) {
+                            scene.showItemWithIndex(drawable.metadata.itemIdx, mesh);
+                        }
                         scene.addObject(newPrev);
                         console.log(modelInf.name);
                         scene.previews.push({model:newPrev, name:modelInf.name});
+                        scene.previewArranger.items.push(newPrev);
                     });
                     
-                }(previewUrl, myInf);
+                }(previewUrl, myInf, i);
             // }
         }
+    }
+    
+    Scene.prototype.showItemWithIndex = function (idx, previewMesh) {
+        var scene = this;
+        if (scene.currentItem.model) {
+            scene.removeObject(scene.currentItem.model);
+        }
+        var itemInf = scene.modelList.files[idx];
+        var previewObj;
+        if (previewMesh) {
+            previewObj = new FCShapes.MeshShape(previewMesh, null, {scale:0.8}, null, {shaderLabel:'diffuse', textureLabel:'skin_1'});
+            scene.addObject(previewObj);
+        }
+        FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name))
+        .then(function (mesh) {
+            var newObj = new FCShapes.MeshShape(mesh, null, {scale:0.8}, null, {shaderLabel:'diffuse', textureLabel:'skin_2'});
+            if (previewObj) {
+                scene.removeObject(previewObj);
+            }
+            scene.addObject(newObj);
+            scene.currentItem.model = newObj;
+            scene.currentItem.idx = idx;
+        });
     }
     
     Scene.prototype.loadModelList = function () {
@@ -410,12 +538,7 @@ window.ExperimentalScene = (function () {
     
     //// //// //// //// //// //// //// //// 
     Scene.prototype.chooseCurrentPreview = function () {
-        
-        
-        
-        
-        
-        
+                
         var scene = this;
         var modelInf = scene.previews[scene.previewIdx];
         
@@ -456,14 +579,8 @@ window.ExperimentalScene = (function () {
             scene.showMessage([msg]);
         });
         
-        
-        
-        
-        
-        
-        
-        
     }
+
     
     Scene.prototype.makeButtonHandler = function () {
         var scene = this;
