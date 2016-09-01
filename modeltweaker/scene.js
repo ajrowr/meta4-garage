@@ -1,5 +1,37 @@
 var DEG=360/(2*Math.PI);
 
+
+var CylinderArranger = function (params) {
+    var p = params || {};
+    this.scale = p.scale || 1;
+    this.perRow = p.perRow || 10;
+    this.rowHeight = p.rowHeight || 1;
+    this.offset = {x:p.offset.x||0.0, y:p.offset.y||0.0, z:p.offset.z||0.0};
+    
+    this.arrangingIdx = 0;
+}
+
+CylinderArranger.prototype.nextPlacement = function () {
+    var arranger = this;
+    var myIdx = this.arrangingIdx++;
+    var row = Math.floor(myIdx / arranger.perRow);
+    var idxInRow = myIdx % arranger.perRow;
+    var itemAngle = Math.PI+(((Math.PI)/arranger.perRow) * idxInRow);
+    return {
+        location: {
+            x: arranger.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
+            y: arranger.offset.y+(row * arranger.rowHeight),
+            z: arranger.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
+        },
+        orientation: {
+            x: 0,
+            y: -1*itemAngle,
+            z: 0
+        }
+    }
+}
+
+
 window.ExperimentalScene = (function () {
     "use strict";
     
@@ -33,6 +65,7 @@ window.ExperimentalScene = (function () {
         
         this.trackpadMode = 0;
         this.trackpadModes = [
+            {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
             {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'},
             {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
             {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
@@ -44,6 +77,9 @@ window.ExperimentalScene = (function () {
                 orientation: {x:0, y:Math.PI}
             }
         }
+        
+        this.previews = [];
+        this.previewIdx = 0;
         
         this.modelListUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=detail';
         this.modelListUrl = 'http://meshbase.meta4vr.net/mesh/incoming?mode=detail';
@@ -96,18 +132,31 @@ window.ExperimentalScene = (function () {
     Scene.prototype.showPreviews = function () {
         var scene = this;
         var prevIdx = 0;
-        for (var i=120; i<Math.min(scene.modelList.files.length, 160); i++) {
+        var arranger = new CylinderArranger({rowHeight: 0.6, perRow: 8, offset:{z:-0.3*scene.stageParams.sizeZ}});
+        
+        /* TODO remove items from scene.previews when changing */
+        for (var i=100; i<Math.min(scene.modelList.files.length, 132); i++) {
             var myInf = scene.modelList.files[i];
             // if (myInf.previews) {
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
-                FCShapeUtils.loadMesh(previewUrl)
-                .then(function (mesh) {
-                    var inf = FCMeshTools.analyseMesh(mesh);
-                    FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate); //<<< it would be better to do this in Blender!
+                var modelName = myInf.name;
+                console.log(modelName);
+                var nowt = function (previuUrl, modelInf) {
+                    FCShapeUtils.loadMesh(previuUrl)
+                    .then(function (mesh) {
+                        // var inf = FCMeshTools.analyseMesh(mesh);
+                        // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate); //<<< it would be better to do this in Blender!
+                        var placement = arranger.nextPlacement();
+                        // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
+                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:0.25}, placement.orientation,
+                            {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'}
+                        );
+                        scene.addObject(newPrev);
+                        console.log(modelInf.name);
+                        scene.previews.push({model:newPrev, name:modelInf.name});
+                    });
                     
-                    var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
-                    scene.addObject(newPrev);
-                });
+                }(previewUrl, myInf);
             // }
         }
     }
@@ -187,19 +236,10 @@ window.ExperimentalScene = (function () {
                 scene.previousObject = cull;
                 scene.removeObject(cull);
                 if (cull.mesh) {
-                    // console.log(scene.gl.isBuffer(cull.mesh.vertexBuffer));
-                    // console.log(scene.gl.isBuffer(cull.mesh.indexBuffer));
-                    // console.log(scene.gl.isBuffer(cull.mesh.textureBuffer));
-                    // console.log(scene.gl.isBuffer(cull.mesh.normalBuffer));
                     scene.gl.deleteBuffer(cull.mesh.vertexBuffer);
                     scene.gl.deleteBuffer(cull.mesh.indexBuffer);
                     scene.gl.deleteBuffer(cull.mesh.textureBuffer);
                     scene.gl.deleteBuffer(cull.mesh.normalBuffer);
-                    // console.log('culling mesh', cull.mesh);
-                    // console.log(scene.gl.isBuffer(cull.mesh.vertexBuffer));
-                    // console.log(scene.gl.isBuffer(cull.mesh.indexBuffer));
-                    // console.log(scene.gl.isBuffer(cull.mesh.textureBuffer));
-                    // console.log(scene.gl.isBuffer(cull.mesh.normalBuffer));
                     
                 }
                 
@@ -213,19 +253,19 @@ window.ExperimentalScene = (function () {
                 FCMeshTools.synthesizeNormals(mesh);
                 messages.push('Normals are synthesized');
             }
-            var inf = FCMeshTools.analyseMesh(mesh);
-            FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate);
+            // var inf = FCMeshTools.analyseMesh(mesh);
+            // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate);
             /* If the vert normals don't seem to be valid, try and synth them. Results are pretty variable but it generally */
             /* seems to do a pretty good job */
-            if (!mesh.vertexNormals[0]) {
-                console.log('Mesh is missing normals, synthesizing..');
-                messages.push('Mesh is missing normals, synthesizing..');
-                FCMeshTools.synthesizeNormals(mesh);
-            }
+            // if (!mesh.vertexNormals[0]) {
+            //     console.log('Mesh is missing normals, synthesizing..');
+            //     messages.push('Mesh is missing normals, synthesizing..');
+            //     FCMeshTools.synthesizeNormals(mesh);
+            // }
             // scene.synthesizeNormals(mesh);
-            console.log(inf);
+            // console.log(inf);
             var halfTurnY = {x:0, y:Math.PI, z:0};
-            scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:inf.suggestedScale}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
+            scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:1}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
             scene.showMessage(messages);
             
             // scene.currentObject.scratchPad = {lastReportAt:0};
@@ -348,6 +388,83 @@ window.ExperimentalScene = (function () {
         this.moveRaftAndPlayerTo(curs.pos);
     }
     
+    Scene.prototype.previewUpdated = function (delta) {
+        console.log('preview updated');
+        var scene = this;
+        var oldPreview = scene.previews[scene.previewIdx];
+        oldPreview.model.texture = scene.textures.white;
+        oldPreview.model.behaviours = [];
+        
+        scene.previewIdx += delta;
+        if (scene.previewIdx < 0) scene.previewIdx = scene.previews.length - 1;
+        else if (scene.previewIdx >= scene.previews.length) scene.previewIdx = 0;
+
+        var newPreview = scene.previews[scene.previewIdx];
+        newPreview.model.texture = scene.textures.green;
+        newPreview.model.behaviours.push(function (drawable, timepoint) {
+            drawable.orientation.y = Math.PI * (timepoint/1500);
+        });
+    }
+    
+    
+    
+    //// //// //// //// //// //// //// //// 
+    Scene.prototype.chooseCurrentPreview = function () {
+        
+        
+        
+        
+        
+        
+        var scene = this;
+        var modelInf = scene.previews[scene.previewIdx];
+        
+        var meshUrl = scene.modelUrlFormat.replace('@@', modelInf.name);
+        scene.setTrackpadMode(0);
+        scene.showMessage(['Loading '+modelInf.name]);
+        var messages = [modelInf.name, 'Size: ' + Math.round((modelInf.size||0)/1000) + ' kbytes', 'Index '+scene.previewIdx];
+        
+        if (scene.currentObject) {
+            var cull = scene.currentObject;
+            scene.previousObject = cull;
+            scene.removeObject(cull);
+            if (cull.mesh) {
+                scene.gl.deleteBuffer(cull.mesh.vertexBuffer);
+                scene.gl.deleteBuffer(cull.mesh.indexBuffer);
+                scene.gl.deleteBuffer(cull.mesh.textureBuffer);
+                scene.gl.deleteBuffer(cull.mesh.normalBuffer);
+                
+            }
+        }
+        
+        var showObject = new FCShapes.MeshShape(modelInf.model.mesh, null, {scale:1}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
+        scene.addObject(showObject);
+        scene.currentObject = showObject;
+        
+        FCShapeUtils.loadMesh(meshUrl, false)
+        .then(function (mesh) {
+            console.log('Loaded', modelInf.name);
+            
+            // var halfTurnY = {x:0, y:Math.PI, z:0};
+            // scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:1}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
+            scene.showMessage(messages);
+            // scene.addObject(scene.currentObject);
+            showObject.mesh = mesh;
+            scene.prepareObject(showObject);
+        })
+        .catch(function (msg) {
+            scene.showMessage([msg]);
+        });
+        
+        
+        
+        
+        
+        
+        
+        
+    }
+    
     Scene.prototype.makeButtonHandler = function () {
         var scene = this;
         /* Button handler for the controllers. The default button handler does 2 things: */
@@ -359,12 +476,23 @@ window.ExperimentalScene = (function () {
                 // console.log('Button idx', btnIdx, 'on controller', gamepadIdx, 'was', btnStatus);
                 
                 if (btnIdx == '0') {
+                    var tpMode = scene.trackpadModes[scene.trackpadMode].mode;
                     if (sector == 'center' && btnStatus == 'released') {
                         scene.setTrackpadMode(null);
                         return;
                     }
-                    switch (scene.trackpadMode) {
-                    case 0:
+                    switch (tpMode) {
+                    case 'MODE_PREVIEW_SELECT':
+                        if (btnStatus == 'released') {
+                            if (sector == 'e' || sector == 'w') {
+                                scene.previewUpdated(sector=='e' && 1 || sector=='w' && -1);
+                            }
+                            else if (sector == 'n') {
+                                scene.chooseCurrentPreview();
+                            }
+                        }
+                        break;
+                    case 'MODE_OBJ_ROT_SCALE':
                         if (sector == 'n') {
                             scene.currentObject.scaleFactor *= 1.005;
                         }
@@ -378,7 +506,7 @@ window.ExperimentalScene = (function () {
                             scene.currentObject.orientation.y -= 0.6/DEG;
                         }
                         break;
-                    case 1:
+                    case 'MODE_OBJ_ROT_JERK':
                         if (sector == 'n' && btnStatus == 'released') {
                             scene.currentObject.orientation.x -= 15/DEG;
                         }
@@ -392,7 +520,7 @@ window.ExperimentalScene = (function () {
                             scene.currentObject.orientation.z -= 15/DEG;
                         }
                         break;
-                    case 2:
+                    case 'MODE_OBJ_FIX':
                         /* Apply a hard transform to the mesh */
                         if (sector == 'n' && btnStatus == 'released') {
                             scene.showMessage(['Reloading mesh with transforms...']);
@@ -547,7 +675,8 @@ window.ExperimentalScene = (function () {
             scene.showPreviews();
         });
         
-        scene.showStatusIndicator(scene.textures.white);
+        // scene.showStatusIndicator(scene.textures.white);
+        scene.showStatusIndicator(scene.textures[scene.trackpadModes[scene.trackpadMode].statusTexLabel])
         
     }
     
