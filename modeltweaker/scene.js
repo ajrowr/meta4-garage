@@ -113,32 +113,19 @@ window.ExperimentalScene = (function () {
         this.meshes = {};
         
         this.modelList = null;
-        
-        this.currentObject = null;
-        //21 isn't too bright but is sideways - looks basically right
-        //39 is perfect
-        //48 nice but dim
-        //25 is a good example of broken
-        //50 very nice example of broken and just generally very nice tbh
-        //45?
-        //4 -> towel
-
-        // this.currentModelIdx = 14;//null;
-        // this.autoLoadIdx = 8;
-        
-        /* if you want to skip meshes, then starting mesh will be this +1 */
-        /* Otherwise set it null */
-        // this.currentModelIdx = 24;
-        this.currentModelIdx = null;
-        // this.autoLoadIdx = 8;
-        
-        
+                
         this.currentItem = {
             model: null,
             idx: null
         }
         
         this.uiMode = 0;
+        this.uiModes = [
+            {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
+            {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'},
+            {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
+            {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
+        ];
         
         this.trackpadMode = 0;
         this.trackpadModes = [
@@ -275,7 +262,8 @@ window.ExperimentalScene = (function () {
         var itemInf = scene.modelList.files[idx];
         var previewObj;
         if (previewMesh) {
-            previewObj = new FCShapes.MeshShape(previewMesh, null, {scale:0.8}, null, {shaderLabel:'diffuse', textureLabel:'skin_1'});
+            previewObj = new FCShapes.MeshShape(previewMesh, null, {scale:0.9}, 
+                                        null, {shaderLabel:'diffuse', textureLabel:'skin_1'});
             scene.addObject(previewObj);
         }
         
@@ -287,7 +275,7 @@ window.ExperimentalScene = (function () {
         
         FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name))
         .then(function (mesh) {
-            var newObj = new FCShapes.MeshShape(mesh, null, {scale:0.8}, null, {shaderLabel:'diffuse', textureLabel:'skin_2'});
+            var newObj = new FCShapes.MeshShape(mesh, null, {scale:0.9}, null, {shaderLabel:'diffuse', textureLabel:'skin_2'});
             if (previewObj) {
                 scene.removeObject(previewObj);
             }
@@ -354,87 +342,7 @@ window.ExperimentalScene = (function () {
             scene.addObject(newBoard);
         })
     }
-    
-    
-    // Scene.prototype.loadModelAtIndex = function (idx, ops) {
-    //     var scene = this;
-    //     var myOps = ops || {};
-    //     var modelInf = scene.modelList.files[idx];
-    //
-    //     // var meshUrl = 'http://meshbase.io.codex.cx/mesher.pycg/'+modelInf.name+'?mode=mesh';
-    //     var meshUrl = scene.modelUrlFormat.replace('@@', modelInf.name);
-    //     // var meshUrl = 'http://meshbase.io.codex.cx/mesher.pycg/'+modelInf.name+'?mode=preview';
-    //     scene.setTrackpadMode(0);
-    //     scene.showMessage(['Loading '+modelInf.name]);
-    //     var messages = [modelInf.name, 'Size: ' + Math.round(modelInf.size/1000) + ' kbytes', 'Index '+idx];
-    //     FCShapeUtils.loadMesh(meshUrl, modelInf.binary)
-    //     .then(function (mesh) {
-    //         console.log('Loaded', modelInf.name);
-    //         if (scene.currentObject) {
-    //             var cull = scene.currentObject;
-    //             scene.previousObject = cull;
-    //             scene.removeObject(cull);
-    //             if (cull.mesh) {
-    //                 scene.gl.deleteBuffer(cull.mesh.vertexBuffer);
-    //                 scene.gl.deleteBuffer(cull.mesh.indexBuffer);
-    //                 scene.gl.deleteBuffer(cull.mesh.textureBuffer);
-    //                 scene.gl.deleteBuffer(cull.mesh.normalBuffer);
-    //
-    //             }
-    //
-    //         }
-    //
-    //         if (myOps.turn) {
-    //             FCMeshTools.turnMesh(mesh, {x:Math.PI/2, y:Math.PI, z:Math.PI});
-    //             messages.push('Mesh is turned');
-    //         }
-    //         if (myOps.synthNormals) {
-    //             FCMeshTools.synthesizeNormals(mesh);
-    //             messages.push('Normals are synthesized');
-    //         }
-    //         // var inf = FCMeshTools.analyseMesh(mesh);
-    //         // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate);
-    //         /* If the vert normals don't seem to be valid, try and synth them. Results are pretty variable but it generally */
-    //         /* seems to do a pretty good job */
-    //         // if (!mesh.vertexNormals[0]) {
-    //         //     console.log('Mesh is missing normals, synthesizing..');
-    //         //     messages.push('Mesh is missing normals, synthesizing..');
-    //         //     FCMeshTools.synthesizeNormals(mesh);
-    //         // }
-    //         // scene.synthesizeNormals(mesh);
-    //         // console.log(inf);
-    //         var halfTurnY = {x:0, y:Math.PI, z:0};
-    //         scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:1}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
-    //         scene.showMessage(messages);
-    //
-    //         // scene.currentObject.scratchPad = {lastReportAt:0};
-    //         // scene.currentObject.behaviours.push(function (drawable, timepoint) {
-    //         //     if ((timepoint - drawable.scratchPad.lastReportAt) > 1000) {
-    //         //         console.log(drawable.debug);
-    //         //         drawable.scratchPad.lastReportAt = timepoint;
-    //         //     }
-    //         // });
-    //         scene.addObject(scene.currentObject);
-    //     })
-    //     .catch(function (msg) {
-    //         scene.showMessage([msg]);
-    //     });
-    //
-    // }
-    
-    // Scene.prototype.loadNextModel = function () {
-    //     var scene = this;
-    //     if (!scene.modelList) return;
-    //     if (scene.currentModelIdx === null) {
-    //         scene.currentModelIdx = -1;
-    //     }
-    //
-    //     var idx = ++scene.currentModelIdx;
-    //     scene.loadModelAtIndex(idx);
-    //     console.log('Loading model with idx', idx);
-    //
-    // }
-    
+        
     Scene.prototype.setupPrereqs = function () {
         var scene = this;
         var prereqPromises = [];
@@ -526,72 +434,7 @@ window.ExperimentalScene = (function () {
         var curs = this.getObjectByLabel('cursor');
         this.moveRaftAndPlayerTo(curs.pos);
     }
-    
-    // Scene.prototype.previewUpdated = function (delta) {
-    //     console.log('preview updated');
-    //     var scene = this;
-    //     var oldPreview = scene.previews[scene.previewIdx];
-    //     oldPreview.model.texture = scene.textures.white;
-    //     oldPreview.model.behaviours = [];
-    //
-    //     scene.previewIdx += delta;
-    //     if (scene.previewIdx < 0) scene.previewIdx = scene.previews.length - 1;
-    //     else if (scene.previewIdx >= scene.previews.length) scene.previewIdx = 0;
-    //
-    //     var newPreview = scene.previews[scene.previewIdx];
-    //     newPreview.model.texture = scene.textures.green;
-    //     newPreview.model.behaviours.push(function (drawable, timepoint) {
-    //         drawable.orientation.y = Math.PI * (timepoint/1500);
-    //     });
-    // }
-    
-    
-    
-    //// //// //// //// //// //// //// //// 
-    // Scene.prototype.chooseCurrentPreview = function () {
-    //
-    //     var scene = this;
-    //     var modelInf = scene.previews[scene.previewIdx];
-    //
-    //     var meshUrl = scene.modelUrlFormat.replace('@@', modelInf.name);
-    //     scene.setTrackpadMode(0);
-    //     scene.showMessage(['Loading '+modelInf.name]);
-    //     var messages = [modelInf.name, 'Size: ' + Math.round((modelInf.size||0)/1000) + ' kbytes', 'Index '+scene.previewIdx];
-    //
-    //     if (scene.currentObject) {
-    //         var cull = scene.currentObject;
-    //         scene.previousObject = cull;
-    //         scene.removeObject(cull);
-    //         if (cull.mesh) {
-    //             scene.gl.deleteBuffer(cull.mesh.vertexBuffer);
-    //             scene.gl.deleteBuffer(cull.mesh.indexBuffer);
-    //             scene.gl.deleteBuffer(cull.mesh.textureBuffer);
-    //             scene.gl.deleteBuffer(cull.mesh.normalBuffer);
-    //
-    //         }
-    //     }
-    //
-    //     var showObject = new FCShapes.MeshShape(modelInf.model.mesh, null, {scale:1}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
-    //     scene.addObject(showObject);
-    //     scene.currentObject = showObject;
-    //
-    //     FCShapeUtils.loadMesh(meshUrl, false)
-    //     .then(function (mesh) {
-    //         console.log('Loaded', modelInf.name);
-    //
-    //         // var halfTurnY = {x:0, y:Math.PI, z:0};
-    //         // scene.currentObject = new FCShapes.MeshShape(mesh, null, {scale:1}, null, {shaderLabel:'diffuse', textureLabel:'skin_3'});
-    //         scene.showMessage(messages);
-    //         // scene.addObject(scene.currentObject);
-    //         showObject.mesh = mesh;
-    //         scene.prepareObject(showObject);
-    //     })
-    //     .catch(function (msg) {
-    //         scene.showMessage([msg]);
-    //     });
-    //
-    // }
-    
+        
     Scene.prototype.interactWithSelection = function (interaction, params) {
         var scene = this;
         var idx = scene.previewArranger.getSelectedIndex();
@@ -611,6 +454,25 @@ window.ExperimentalScene = (function () {
         }
     }
     
+    Scene.prototype.handleButton_MODE_OBJ_ROT_SCALE = function (btnIdx, btnStatus, sector, myButton, extra) {
+        var scene = this;
+        if (btnIdx == 0 && btnStatus == 'held') {
+            if (sector == 'n') {
+                scene.currentItem.model.scaleFactor *= 1.005;
+            }
+            else if (sector == 's') {
+                scene.currentItem.model.scaleFactor *= 0.995;
+            }
+            else if (sector == 'w') {
+                scene.currentItem.model.orientation.y += 0.6/DEG;
+            }
+            else if (sector == 'e') {
+                scene.currentItem.model.orientation.y -= 0.6/DEG;
+            }
+            
+        }
+    }
+    
     Scene.prototype.makeButtonHandler = function () {
         var scene = this;
         var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
@@ -621,8 +483,9 @@ window.ExperimentalScene = (function () {
             }
             
             var uiMode = scene.trackpadModes[scene.trackpadMode].mode; /* TODO calling it trackpadMode is outdated */
-            if (uiMode == 'MODE_PREVIEW_SELECT') {
-                return scene.handleButton_MODE_PREVIEW_SELECT(btnIdx, btnStatus, sector, myButton, extra);
+            var handler = scene['handleButton_'+uiMode];
+            if (handler) {
+                return handler.call(scene, btnIdx, btnStatus, sector, myButton, extra);
             }
         };
         return buttonHandler;
