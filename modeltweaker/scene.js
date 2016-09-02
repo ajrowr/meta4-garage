@@ -122,9 +122,9 @@ window.ExperimentalScene = (function () {
         this.uiMode = 0;
         this.uiModes = [
             {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
-            {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'},
-            {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
-            {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
+            {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'}
+            // {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
+            // {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
         ];
         
         this.trackpadMode = 0;
@@ -169,15 +169,15 @@ window.ExperimentalScene = (function () {
     Scene.prototype = Object.create(FCScene.prototype);
     
     /* If idx is not set, increment */
-    Scene.prototype.setTrackpadMode = function (idx) {
+    Scene.prototype.setUIMode = function (idx) {
         var scene = this;
         if (idx === null || idx === undefined) {
-            scene.trackpadMode = ++scene.trackpadMode%scene.trackpadModes.length;
+            scene.uiMode = ++scene.uiMode%scene.uiModes.length;
         }
         else {
-            scene.trackpadMode = 0;
+            scene.uiMode = 0;
         }
-        var modeInf = scene.trackpadModes[scene.trackpadMode];
+        var modeInf = scene.uiModes[scene.uiMode];
         scene.showStatusIndicator(scene.textures[modeInf.statusTexLabel]);
         
     }
@@ -204,14 +204,64 @@ window.ExperimentalScene = (function () {
     }
     
     /* Form meshes which are kind enough to be previewable, show the previews */
-    Scene.prototype.showPreviews = function () {
+    Scene.prototype.setupPreviews = function (rangeStart, rangeEnd) {
         var scene = this;
         var prevIdx = 0;
-        var arranger = new CylinderArranger({rowHeight: 0.6, perRow: 8, offset:{z:-0.3*scene.stageParams.sizeZ}});
-        scene.previewArranger = arranger;
+        if (!scene.previewArranger) {
+            scene.previewArranger = new CylinderArranger({rowHeight: 0.6, perRow: 8, offset:{z:-0.3*scene.stageParams.sizeZ}});
+            
+            var arrowSize = {height: 0.1, scale:0.2};
+            var arrowParams = {
+                shaderLabel:'diffuse', texture:scene.textures.white, 
+                label:'experiment', groupLabel:'experiment', 
+                shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse()
+            };
+            var arrowSelect = function (drawable, p) {
+                drawable.textureLabel = 'cyan';
+            };
+            var arrowDeselect = function (drawable, p) {
+                drawable.textureLabel = 'white';
+            };
+            var arrowPosLeft = {x:-0.6*scene.stageParams.sizeX, y:1.3, z:-0.3*scene.stageParams.sizeZ};
+            var arrowPosRight = {x:arrowPosLeft.x*-1, y:arrowPosLeft.y, z:arrowPosLeft.z};
+        
+            var arrowLeft = new FCShapes.LatheExtruderShape(
+                arrowPosLeft, arrowSize, {x:0.5*Math.PI, y:Math.PI, z:0}, 
+                arrowParams
+            );
+            arrowLeft.interactions['select'] = arrowSelect;
+            arrowLeft.interactions['deselect'] = arrowDeselect;
+            scene.previewArranger.specialItems.PAGE_LEFT = arrowLeft;
+
+            // var arrowRight = new FCShapes.LatheExtruderShape(
+            //     arrowPosRight, {height: 0.1, scale:0.2}, {x:0.5*Math.PI, y:0, z:0},
+            //     {
+            //         shaderLabel:'diffuse', texture:scene.textures.white,
+            //         label:'experiment', groupLabel:'experiment',
+            //         shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse()
+            //     }
+            // );
+            var arrowRight = new FCShapes.LatheExtruderShape(
+                arrowPosRight, arrowSize, {x:0.5*Math.PI, y:0, z:0}, 
+                arrowParams
+            );
+            arrowRight.interactions['select'] = arrowSelect;
+            arrowRight.interactions['deselect'] = arrowDeselect;
+            scene.previewArranger.specialItems.PAGE_RIGHT = arrowRight;
+
+            scene.addObject(arrowLeft);
+            scene.addObject(arrowRight);
+            
+        }
+        var arranger = scene.previewArranger;
+        
+        // var arrowLeft = new FCShapes.LatheShape({x:2, y:2, z:-2}, {height:0.5}, {x:0, y:0, z:1.5*Math.PI}, {shaderLabel:'diffuse', textureLabel:'white', label:'arrowLeft', profile:[0.3,0]});
+        // scene.addObject(arrowLeft);
+        
+        
         
         /* TODO remove items from scene.previews when changing */
-        for (var i=100; i<Math.min(scene.modelList.files.length, 132); i++) {
+        for (var i=rangeStart || 0; i<Math.min(scene.modelList.files.length, (rangeStart||0)+32); i++) {
             var myInf = scene.modelList.files[i];
             // if (myInf.previews) {
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
@@ -478,11 +528,11 @@ window.ExperimentalScene = (function () {
         var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
             /* Menu button always changes the UI mode */
             if (btnIdx == 3 && btnStatus == 'pressed') {
-                scene.setTrackpadMode(null);
+                scene.setUIMode(null);
                 return;
             }
             
-            var uiMode = scene.trackpadModes[scene.trackpadMode].mode; /* TODO calling it trackpadMode is outdated */
+            var uiMode = scene.uiModes[scene.uiMode].mode; /* TODO calling it trackpadMode is outdated */
             var handler = scene['handleButton_'+uiMode];
             if (handler) {
                 return handler.call(scene, btnIdx, btnStatus, sector, myButton, extra);
@@ -502,9 +552,9 @@ window.ExperimentalScene = (function () {
                 // console.log('Button idx', btnIdx, 'on controller', gamepadIdx, 'was', btnStatus);
                 
                 if (btnIdx == '0') {
-                    var tpMode = scene.trackpadModes[scene.trackpadMode].mode;
+                    var tpMode = scene.uiModes[scene.uiMode].mode;
                     if (sector == 'center' && btnStatus == 'released') {
-                        scene.setTrackpadMode(null);
+                        scene.setUIMode(null);
                         return;
                     }
                     switch (tpMode) {
@@ -698,11 +748,11 @@ window.ExperimentalScene = (function () {
         scene.loadModelList()
         .then(function () {
             if (scene.autoLoadIdx) scene.loadModelAtIndex(scene.autoLoadIdx);
-            scene.showPreviews();
+            scene.setupPreviews();
         });
         
         // scene.showStatusIndicator(scene.textures.white);
-        scene.showStatusIndicator(scene.textures[scene.trackpadModes[scene.trackpadMode].statusTexLabel])
+        scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTexLabel])
         
     }
     
@@ -713,6 +763,9 @@ window.ExperimentalScene = (function () {
         /* When the behaviour is assigned, it will start updating the object's position directly to */
         /* match that of the controller (ie. the player's hand location) so we need to pre-emptively */
         /* cancel those out to keep the object's position from suddenly changing as it is grabbed. */
+        
+        /* orrrrr you could just set it to the origin? (relative to raft pos) */
+        
         scene.objectIsGrabbed = true;
         var obj = scene.currentObject;
         var hand = scene.playerSpatialState.hands[gamepadIdx]; //<<< watch out for this
