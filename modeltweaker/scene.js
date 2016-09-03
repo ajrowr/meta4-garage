@@ -4,7 +4,7 @@ var DEG=360/(2*Math.PI);
 /* Grid items are the things currently being displayed and are drawables */
 /* Data items are the backing store of generic whatevers to which the grid items map. */
 /* Think of the set of grid items as a movable "window" onto the data items */
-var CylinderArranger = function (params) {
+var SelectGrid = function (params) {
     var p = params || {};
     this.scale = p.scale || 1;
     this.perRow = p.perRow || 10;
@@ -28,7 +28,7 @@ var CylinderArranger = function (params) {
     
 }
 
-CylinderArranger.prototype.setRange = function (rStart, rLength) {
+SelectGrid.prototype.setRange = function (rStart, rLength) {
     if (rLength == null) {
         rLength = this.currentRange.length;
     }
@@ -41,7 +41,7 @@ CylinderArranger.prototype.setRange = function (rStart, rLength) {
     return this.currentRange;
 }
 
-CylinderArranger.prototype.changePage = function (rel) {
+SelectGrid.prototype.changePage = function (rel) {
     if (rel==1) {
         this.setRange(this.currentRange.end);
     }
@@ -51,42 +51,42 @@ CylinderArranger.prototype.changePage = function (rel) {
     console.log(this.currentRange);
 }
 
-CylinderArranger.prototype.setData = function (items) {
+SelectGrid.prototype.setData = function (items) {
     this.dataItems = items;
     this.setRange(0);
 }
 
-CylinderArranger.prototype.getSelectedIndex = function () {
+SelectGrid.prototype.getSelectedIndex = function () {
     if (this.specialSelection) return null;
     else return (this.columns * this.selectCaret.row) + this.selectCaret.column;
 }
 
-CylinderArranger.prototype.getGridItemForSelection = function () {
+SelectGrid.prototype.getGridItemForSelection = function () {
     if (this.specialSelection) return this.specialItems[this.specialSelection];
     else return this.gridItems[this.getSelectedIndex()];
 }
 
-CylinderArranger.prototype.getDataForSelection = function () {
+SelectGrid.prototype.getDataForSelection = function () {
     if (this.specialSelection) return null;
     var gridIdx = this.getSelectedIndex();
     return this.dataItems[this.currentRange.start + gridIdx];
 }
 
-CylinderArranger.prototype.getDataIndexForGridIndex = function (gridIdx) {
+SelectGrid.prototype.getDataIndexForGridIndex = function (gridIdx) {
     return this.currentRange.start + gridIdx;
 }
 
-CylinderArranger.prototype.nextPlacement = function () {
-    var arranger = this;
+SelectGrid.prototype.nextPlacement = function () {
+    var grid = this;
     var myIdx = this._arrangingIdx++;
-    var row = Math.floor(myIdx / arranger.perRow);
-    var idxInRow = myIdx % arranger.perRow;
-    var itemAngle = Math.PI+(((Math.PI)/arranger.perRow) * idxInRow);
+    var row = Math.floor(myIdx / grid.perRow);
+    var idxInRow = myIdx % grid.perRow;
+    var itemAngle = Math.PI+(((Math.PI)/grid.perRow) * idxInRow);
     return {
         location: {
-            x: arranger.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
-            y: arranger.offset.y+(row * arranger.rowHeight),
-            z: arranger.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
+            x: grid.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
+            y: grid.offset.y+(row * grid.rowHeight),
+            z: grid.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
         },
         orientation: {
             x: 0,
@@ -96,17 +96,17 @@ CylinderArranger.prototype.nextPlacement = function () {
     }
 }
 
-CylinderArranger.prototype.getPlacementForGridPosition = function (gridIdx) {
+SelectGrid.prototype.getPlacementForGridPosition = function (gridIdx) {
     // console.log(gridIdx);
-    var arranger = this;
-    var row = Math.floor(gridIdx / arranger.perRow);
-    var idxInRow = gridIdx % arranger.perRow;
-    var itemAngle = Math.PI+(((Math.PI)/arranger.perRow) * idxInRow);
+    var grid = this;
+    var row = Math.floor(gridIdx / grid.perRow);
+    var idxInRow = gridIdx % grid.perRow;
+    var itemAngle = Math.PI+(((Math.PI)/grid.perRow) * idxInRow);
     return {
         location: {
-            x: arranger.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
-            y: arranger.offset.y+(row * arranger.rowHeight),
-            z: arranger.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
+            x: grid.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
+            y: grid.offset.y+(row * grid.rowHeight),
+            z: grid.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
         },
         orientation: {
             x: 0,
@@ -117,11 +117,11 @@ CylinderArranger.prototype.getPlacementForGridPosition = function (gridIdx) {
     
 }
 
-// CylinderArranger.prototype.interactWithCurrentSelection = function (interaction) {
+// SelectGrid.prototype.interactWithCurrentSelection = function (interaction) {
 //
 // }
 
-CylinderArranger.prototype.moveSelectCaret = function (direction) {
+SelectGrid.prototype.moveSelectCaret = function (direction) {
 
     /* Deselect current */
     var currentSelection;
@@ -231,7 +231,7 @@ window.ExperimentalScene = (function () {
         this.modelUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=mesh';
         this.statusIndicator = null;
         
-        this.previewArranger = null;
+        this.previewGrid = null;
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -275,17 +275,18 @@ window.ExperimentalScene = (function () {
     Scene.prototype.setupPreviews = function (rangeStart, rangeLength) {
         var scene = this;
         var prevIdx = 0;
-        if (!scene.previewArranger) {
-            scene.previewArranger = new CylinderArranger(
+        if (!scene.previewGrid) {
+            scene.previewGrid = new SelectGrid(
                 {rowHeight: 0.6, perRow: 8, offset:{z:-0.3*scene.stageParams.sizeZ}}
             );
-            scene.previewArranger.setData(scene.modelList.files);
+            scene.previewGrid.setData(scene.modelList.files);
             
             var arrowSize = {height: 0.1, scale:0.2};
             var arrowParams = {
                 shaderLabel:'diffuse', texture:scene.textures.white, 
                 groupLabel:'uiChrome', 
-                shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse()
+                shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse(),
+                samplerType: 'BeveledExtrudeSampler'
             };
             var arrowSelect = function (drawable, p) {
                 drawable.texture = scene.textures.cyan;
@@ -295,7 +296,7 @@ window.ExperimentalScene = (function () {
             };
             var mkArrowActivate = function (rel) {
                 var arrowActivate = function (drawable, p) {
-                    scene.previewArranger.changePage(rel);
+                    scene.previewGrid.changePage(rel);
                     scene.setupPreviews(null);
                 };
                 return arrowActivate;
@@ -310,16 +311,8 @@ window.ExperimentalScene = (function () {
             arrowLeft.interactions['select'] = arrowSelect;
             arrowLeft.interactions['deselect'] = arrowDeselect;
             arrowLeft.interactions['activate'] = mkArrowActivate(-1);
-            scene.previewArranger.specialItems.PAGE_LEFT = arrowLeft;
+            scene.previewGrid.specialItems.PAGE_LEFT = arrowLeft;
 
-            // var arrowRight = new FCShapes.LatheExtruderShape(
-            //     arrowPosRight, {height: 0.1, scale:0.2}, {x:0.5*Math.PI, y:0, z:0},
-            //     {
-            //         shaderLabel:'diffuse', texture:scene.textures.white,
-            //         label:'experiment', groupLabel:'experiment',
-            //         shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse()
-            //     }
-            // );
             var arrowRight = new FCShapes.LatheExtruderShape(
                 arrowPosRight, arrowSize, {x:0.5*Math.PI, y:0, z:0}, 
                 arrowParams
@@ -327,16 +320,16 @@ window.ExperimentalScene = (function () {
             arrowRight.interactions['select'] = arrowSelect;
             arrowRight.interactions['deselect'] = arrowDeselect;
             arrowRight.interactions['activate'] = mkArrowActivate(1);
-            scene.previewArranger.specialItems.PAGE_RIGHT = arrowRight;
+            scene.previewGrid.specialItems.PAGE_RIGHT = arrowRight;
 
             scene.addObject(arrowLeft);
             scene.addObject(arrowRight);
             
         }
-        var arranger = scene.previewArranger;
-        /* If rangeStart is null, the arranger was configured elsewhere */
+        var grid = scene.previewGrid;
+        /* If rangeStart is null, the grid was configured elsewhere */
         if (rangeStart != null) {
-            arranger.setRange(rangeStart, rangeLength);
+            grid.setRange(rangeStart, rangeLength);
         }
         
         /* TODO remove items from scene.previews when changing */
@@ -346,9 +339,9 @@ window.ExperimentalScene = (function () {
             scene.removeObject(currentPreviews[i], true);
         }
         
-        // console.log(arranger.currentRange);
-        var myItems = scene.modelList.files.slice(arranger.currentRange.start, arranger.currentRange.end);
-        // for (var i=arranger.currentRange.start || 0; i<arranger.currentRange.end; i++) {
+        // console.log(grid.currentRange);
+        var myItems = scene.modelList.files.slice(grid.currentRange.start, grid.currentRange.end);
+        // for (var i=grid.currentRange.start || 0; i<grid.currentRange.end; i++) {
         // for (var i=0; i<16; i++) {
         for (var i=0; i<myItems.length; i++) {
             var myInf = myItems[i];
@@ -361,18 +354,18 @@ window.ExperimentalScene = (function () {
                     .then(function (mesh) {
                         // var inf = FCMeshTools.analyseMesh(mesh);
                         // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate); //<<< it would be better to do this in Blender!
-                        // var placement = arranger.nextPlacement();
-                        var placement = arranger.getPlacementForGridPosition(modelIdx);
+                        // var placement = grid.nextPlacement();
+                        var placement = grid.getPlacementForGridPosition(modelIdx);
                         // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
                         var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:0.25}, placement.orientation,
                             {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'}
                         );
                         newPrev.metadata.name = modelInf.name;
                         newPrev.metadata.gridIdx = modelIdx;
-                        newPrev.metadata.dataIdx = arranger.getDataIndexForGridIndex(modelIdx);
+                        newPrev.metadata.dataIdx = grid.getDataIndexForGridIndex(modelIdx);
                         newPrev.interactions['select'] = function (drawable, p) {
                             drawable.textureLabel = 'cyan';
-                            console.log(arranger.getDataForSelection());
+                            console.log(grid.getDataForSelection());
                             
                             drawable.behaviours.push(function (dr, timePoint) {
                                 dr.orientation = {x:0,y:Math.PI*(timePoint/1700), z:0};
@@ -389,8 +382,8 @@ window.ExperimentalScene = (function () {
                         // console.log(modelInf.name);
                         // scene.previews.push({model:newPrev, name:modelInf.name});
                         scene.previews.push(newPrev);
-                        arranger.gridItems[modelIdx]=newPrev;
-                        // console.log(arranger.items);
+                        grid.gridItems[modelIdx]=newPrev;
+                        // console.log(grid.items);
                     });
                     
                 }(previewUrl, myInf, i);
@@ -581,8 +574,8 @@ window.ExperimentalScene = (function () {
         
     Scene.prototype.interactWithSelection = function (interaction, params) {
         var scene = this;
-        // var idx = scene.previewArranger.getSelectedIndex();
-        var obj = scene.previewArranger.getGridItemForSelection();
+        // var idx = scene.previewGrid.getSelectedIndex();
+        var obj = scene.previewGrid.getGridItemForSelection();
         // if (idx == null) {
         //
         // }
@@ -595,7 +588,7 @@ window.ExperimentalScene = (function () {
         if (btnIdx == 0 && btnStatus == 'pressed') {
             var selDir = (sector == 'w' && 'LEFT' || sector == 'e' && 'RIGHT' || 
                         sector == 'n' && 'UP' || sector == 's' && 'DOWN' || null);
-            if (selDir) scene.previewArranger.moveSelectCaret(selDir);
+            if (selDir) scene.previewGrid.moveSelectCaret(selDir);
         }
         else if (btnIdx == 1 && btnStatus == 'pressed') {
             scene.interactWithSelection('activate');
