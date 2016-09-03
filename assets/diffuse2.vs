@@ -9,6 +9,7 @@ attribute highp vec3 aVertexNormal;
 
 
 uniform highp mat4 modelViewMat;
+uniform highp mat4 modelMat;
 uniform highp mat4 projectionMat;
 uniform highp mat4 normalMat;
 uniform highp vec3 baseColor; /* Deprecated */
