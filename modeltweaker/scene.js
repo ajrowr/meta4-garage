@@ -29,7 +29,7 @@ var CylinderArranger = function (params) {
 }
 
 CylinderArranger.prototype.setRange = function (rStart, rLength) {
-    if (rLength === null) {
+    if (rLength == null) {
         rLength = this.currentRange.length;
     }
     this.currentRange = {
@@ -61,10 +61,19 @@ CylinderArranger.prototype.getSelectedIndex = function () {
     else return (this.columns * this.selectCaret.row) + this.selectCaret.column;
 }
 
+CylinderArranger.prototype.getGridItemForSelection = function () {
+    if (this.specialSelection) return this.specialItems[this.specialSelection];
+    else return this.gridItems[this.getSelectedIndex()];
+}
+
 CylinderArranger.prototype.getDataForSelection = function () {
     if (this.specialSelection) return null;
     var gridIdx = this.getSelectedIndex();
     return this.dataItems[this.currentRange.start + gridIdx];
+}
+
+CylinderArranger.prototype.getDataIndexForGridIndex = function (gridIdx) {
+    return this.currentRange.start + gridIdx;
 }
 
 CylinderArranger.prototype.nextPlacement = function () {
@@ -337,10 +346,12 @@ window.ExperimentalScene = (function () {
             scene.removeObject(currentPreviews[i], true);
         }
         
-        console.log(arranger.currentRange);
-        for (var i=arranger.currentRange.start || 0; i<arranger.currentRange.end; i++) {
+        // console.log(arranger.currentRange);
+        var myItems = scene.modelList.files.slice(arranger.currentRange.start, arranger.currentRange.end);
+        // for (var i=arranger.currentRange.start || 0; i<arranger.currentRange.end; i++) {
         // for (var i=0; i<16; i++) {
-            var myInf = scene.modelList.files[i];
+        for (var i=0; i<myItems.length; i++) {
+            var myInf = myItems[i];
             // if (myInf.previews) {
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
                 var modelName = myInf.name;
@@ -357,7 +368,8 @@ window.ExperimentalScene = (function () {
                             {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'}
                         );
                         newPrev.metadata.name = modelInf.name;
-                        newPrev.metadata.itemIdx = modelIdx;
+                        newPrev.metadata.gridIdx = modelIdx;
+                        newPrev.metadata.dataIdx = arranger.getDataIndexForGridIndex(modelIdx);
                         newPrev.interactions['select'] = function (drawable, p) {
                             drawable.textureLabel = 'cyan';
                             console.log(arranger.getDataForSelection());
@@ -371,7 +383,7 @@ window.ExperimentalScene = (function () {
                             drawable.behaviours = [];
                         }
                         newPrev.interactions['activate'] = function (drawable, p) {
-                            scene.showItemWithIndex(drawable.metadata.itemIdx, mesh);
+                            scene.showItemWithIndex(drawable.metadata.dataIdx, mesh);
                         }
                         scene.addObject(newPrev);
                         // console.log(modelInf.name);
@@ -569,8 +581,12 @@ window.ExperimentalScene = (function () {
         
     Scene.prototype.interactWithSelection = function (interaction, params) {
         var scene = this;
-        var idx = scene.previewArranger.getSelectedIndex();
-        var obj = scene.previews[idx];
+        // var idx = scene.previewArranger.getSelectedIndex();
+        var obj = scene.previewArranger.getGridItemForSelection();
+        // if (idx == null) {
+        //
+        // }
+        // var obj = scene.previews[idx];
         obj.interact(interaction, params);
     }
     
