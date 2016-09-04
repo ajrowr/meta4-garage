@@ -1,3 +1,19 @@
+
+struct LightInfo {
+    vec4 Position;
+    vec3 La;
+    vec3 Ld;
+    vec3 Ls;
+};
+
+struct MaterialInfo {
+    vec3 Ka;
+    vec3 Kd;
+    vec3 Ks;
+    float Shininess;
+};
+
+
 attribute highp vec3 aVertexPosition;
 attribute highp vec2 aTextureCoord;
 attribute highp vec3 aVertexNormal;
@@ -24,22 +40,36 @@ varying highp vec3 vLighting;
 
 varying highp vec3 vColor; /* Deprecated */
 
+
 void main(void) {
     gl_Position = projectionMat * modelViewMat * vec4(aVertexPosition, 1.0);
     vTextureCoord = aTextureCoord;
 
-    highp vec4 transformedNormal = normalMat * vec4(aVertexNormal, 1.0);
     
-    highp vec3 ambientLight = vec3(0.2, 0.2, 0.2);
-    highp vec4 pointLightPos = vec4(0.0, 3.0, 1.0, 1.0);
-    highp vec3 pointLightColor = vec3(1.0, 1.0, 1.0);
-    highp vec3 Kd = vec3(1.0, 1.0, 1.0);
+    LightInfo light1;
+    light1.Position = vec4(0.0, 3.0, 1.0, 1.0);
+    light1.La = vec3(0.2, 0.2, 0.2);
+    light1.Ld = vec3(1.0, 1.0, 1.0);
+    light1.Ls = vec3(1.0, 1.0, 1.0);
+    
+    MaterialInfo material1;
+    material1.Ka = vec3(1.0, 1.0, 1.0);
+    material1.Kd = vec3(1.0, 1.0, 1.0);
+    material1.Ks = vec3(1.0, 1.0, 1.0);
+    material1.Shininess = 0.3;
+    
+    // highp vec3 ambientLight = vec3(0.2, 0.2, 0.2);
+    // highp vec4 pointLightPos = vec4(0.0, 3.0, 1.0, 1.0);
+    // highp vec3 pointLightColor = vec3(1.0, 1.0, 1.0);
+    // highp vec3 Kd = vec3(1.0, 1.0, 1.0); // surface reflectivity
     
     // vec3 tnorm = normalize(normalMat * aVertexNormal);
     /// vec4 eyeCoords = modelViewMat * vec4(aVertexPosition, 1.0);
+    
+    highp vec4 transformedNormal = normalMat * vec4(aVertexNormal, 1.0);
     vec4 eyeCoords = modelMat * vec4(aVertexPosition, 1.0);
-    vec3 s = normalize(vec3(pointLightPos - eyeCoords));
-    vLighting = ambientLight + (pointLightColor * Kd * max(dot(s, transformedNormal.xyz), 0.0));
+    vec3 s = normalize(vec3(light1.Position - eyeCoords));
+    vLighting = light1.La + (light1.Ld * material1.Kd * max(dot(s, transformedNormal.xyz), 0.0));
     
     
     // highp vec3 directionalLightColor = vec3(0.809, 0.809, 0.809);
