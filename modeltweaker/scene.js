@@ -56,6 +56,10 @@ SelectGrid.prototype.setData = function (items) {
     this.setRange(0);
 }
 
+SelectGrid.prototype.getDataForCurrentRange = function () {
+    return this.dataItems.slice(this.currentRange.start, this.currentRange.end);
+}
+
 SelectGrid.prototype.getSelectedIndex = function () {
     if (this.specialSelection) return null;
     else return (this.columns * this.selectCaret.row) + this.selectCaret.column;
@@ -76,25 +80,7 @@ SelectGrid.prototype.getDataIndexForGridIndex = function (gridIdx) {
     return this.currentRange.start + gridIdx;
 }
 
-SelectGrid.prototype.nextPlacement = function () {
-    var grid = this;
-    var myIdx = this._arrangingIdx++;
-    var row = Math.floor(myIdx / grid.perRow);
-    var idxInRow = myIdx % grid.perRow;
-    var itemAngle = Math.PI+(((Math.PI)/grid.perRow) * idxInRow);
-    return {
-        location: {
-            x: grid.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
-            y: grid.offset.y+(row * grid.rowHeight),
-            z: grid.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
-        },
-        orientation: {
-            x: 0,
-            y: -1*itemAngle,
-            z: 0
-        }
-    }
-}
+
 
 SelectGrid.prototype.getPlacementForGridPosition = function (gridIdx) {
     // console.log(gridIdx);
@@ -340,7 +326,8 @@ window.ExperimentalScene = (function () {
         }
         
         // console.log(grid.currentRange);
-        var myItems = scene.modelList.files.slice(grid.currentRange.start, grid.currentRange.end);
+        // var myItems = scene.modelList.files.slice(grid.currentRange.start, grid.currentRange.end);
+        var myItems = grid.getDataForCurrentRange();
         // for (var i=grid.currentRange.start || 0; i<grid.currentRange.end; i++) {
         // for (var i=0; i<16; i++) {
         for (var i=0; i<myItems.length; i++) {
@@ -348,7 +335,7 @@ window.ExperimentalScene = (function () {
             // if (myInf.previews) {
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
                 var modelName = myInf.name;
-                console.log(modelName);
+                // console.log(modelName);
                 var nowt = function (previuUrl, modelInf, modelIdx) {
                     FCShapeUtils.loadMesh(previuUrl)
                     .then(function (mesh) {
@@ -366,6 +353,8 @@ window.ExperimentalScene = (function () {
                         newPrev.interactions['select'] = function (drawable, p) {
                             drawable.textureLabel = 'cyan';
                             console.log(grid.getDataForSelection());
+                            var inf = grid.getDataForSelection();
+                            scene.showMessage([inf.name, Math.round(inf.size/100000)/10+' mb']);
                             
                             drawable.behaviours.push(function (dr, timePoint) {
                                 dr.orientation = {x:0,y:Math.PI*(timePoint/1700), z:0};
@@ -622,6 +611,10 @@ window.ExperimentalScene = (function () {
                 scene.setUIMode(null);
                 return;
             }
+            else if (btnIdx == '2' && btnStatus == 'pressed') {
+                scene.teleportUserToCursor();
+            }
+            
             
             var uiMode = scene.uiModes[scene.uiMode].mode; /* TODO calling it trackpadMode is outdated */
             var handler = scene['handleButton_'+uiMode];
