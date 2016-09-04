@@ -345,7 +345,7 @@ window.ExperimentalScene = (function () {
                         var placement = grid.getPlacementForGridPosition(modelIdx);
                         // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
                         var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:0.25}, placement.orientation,
-                            {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'}
+                            {shaderLabel:modelIdx % 2 && 'ads' || 'diffuse', textureLabel:'white', groupLabel:'previews'}
                         );
                         newPrev.metadata.name = modelInf.name;
                         newPrev.metadata.gridIdx = modelIdx;
@@ -536,14 +536,55 @@ window.ExperimentalScene = (function () {
             /* Load shaders */
             var shaders = [
                 {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
-                {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'}
+                {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'},
+                {srcFs: 'ads_v1.fs', srcVs: 'ads_v1.vs', label: 'ads'}
             ];
             for (var i=0; i<shaders.length; i++) {
                 var myShader = shaders[i];
-                prereqPromises.push(scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
-                    position: 0,
-                    texCoord: 1,
-                    vertexNormal: 2                
+                prereqPromises.push(new Promise(function (resolve, reject) {
+                    scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
+                        position: 0,
+                        texCoord: 1,
+                        vertexNormal: 2
+                    })
+                    .then(function (shaderInfo) {
+                        console.log('Compiled shader ' + shaderInfo.label);
+                        if (shaderInfo.label == 'ads') {
+                            shaderInfo.program.use();
+                            console.log(shaderInfo.program.uniform);
+                            /* Set up scene lights */
+                            // var ads = this.shaders.ads;
+                            var u = shaderInfo.program.uniform;
+                            scene.gl.uniform3fv(u['material.Ambient'], [1.0, 1.0, 1.0]);
+                            scene.gl.uniform3fv(u['material.Diffuse'], [0.8, 0.8, 0.8]);
+                            scene.gl.uniform3fv(u['material.Specular'], [1.0, 1.0, 1.0]);
+                            scene.gl.uniform1f(u['material.Shininess'], 0.8);
+
+                            scene.gl.uniform4fv(u['lights[1].Position'], [0.0, 3.0, 1.0, 1.0]);
+                            scene.gl.uniform3fv(u['lights[1].Ambient'], [0.1, 0.1, 0.1]);
+                            scene.gl.uniform3fv(u['lights[1].Diffuse'], [0.8, 0.8, 0.8]);
+                            scene.gl.uniform3fv(u['lights[1].Specular'], [0.0, 0.0, 0.0]);
+                            
+                            scene.gl.uniform4fv(u['lights[2].Position'], [0.0, 3.0, 5.0, 1.0]);
+                            scene.gl.uniform3fv(u['lights[2].Ambient'], [0.0, 0.0, 0.0]);
+                            scene.gl.uniform3fv(u['lights[2].Diffuse'], [0.2, 0.2, 0.8]);
+                            scene.gl.uniform3fv(u['lights[2].Specular'], [0.0, 0.0, 0.0]);
+                            
+                            scene.gl.uniform4fv(u['lights[3].Position'], [0.0, 3.0, -5.0, 1.0]);
+                            scene.gl.uniform3fv(u['lights[3].Ambient'], [0.0, 0.0, 0.0]);
+                            scene.gl.uniform3fv(u['lights[3].Diffuse'], [0.2, 0.2, 0.2]);
+                            scene.gl.uniform3fv(u['lights[3].Specular'], [0.0, 0.0, 0.0]);
+                            
+                            // scene.gl.uniform4fv(u['lights[2].Position'], []);
+                            // scene.gl.uniform3fv(u['lights[2].Ambient'], []);
+                            // scene.gl.uniform3fv(u['lights[2].Diffuse'], []);
+                            // scene.gl.uniform3fv(u['lights[2].Specular'], []);
+                            
+                            
+                            
+                        }
+                        resolve();
+                    })
                 }));
             }
             
