@@ -39,7 +39,7 @@ vec3 ads(LightInfo light, MaterialInfo mat, vec4 pos, vec3 norm) {
     vec3 r = reflect(-s, norm);
     return light.Ambient * mat.Ambient +
             light.Diffuse * (mat.Diffuse * max(dot(s, norm), 0.0)) +
-            light.Specular * (mat.Specular * pow(max(dot(r, v), 0.0), mat.Shininess));
+            light.Specular * (mat.Specular * pow(max(dot(r, v), 0.0), max(0.00001, mat.Shininess)));
 }
 
 void main(void) {
@@ -58,6 +58,7 @@ void main(void) {
     /* up for the overall scene. */
     /* So we probably want to use a custom matrix that incorporates certain aspects of the user's viewpoint */
     /* but not all of them. Like a "flattened" MVM. Research is ongoing. */
+    /* Meanwhile if you want to use specular on something try activating the useExperimentalLightingModel uniform. */
     bool forceExperimentalLightingModel = false;
     if (useExperimentalLightingModel || forceExperimentalLightingModel) {
         viewingMat = modelViewMat;
@@ -65,46 +66,6 @@ void main(void) {
     else {
         viewingMat = modelMat;
     }
-    
-    // LightInfo light1;
-    // light1.Position = vec4(0.0, 3.0, 1.0, 1.0);
-    // light1.Ambient = vec3(0.2, 0.2, 0.2);
-    // light1.Diffuse = vec3(0.8, 0.8, 0.8);
-    // light1.Specular = vec3(0.0, 0.0, 0.0);
-    // LightInfo light1 = LightInfo(
-    //     vec4(0.0, 3.0, 1.0, 1.0),
-    //     vec3(0.2, 0.2, 0.2),
-    //     vec3(0.8, 0.8, 0.8),
-    //     vec3(0.0, 0.0, 0.0)
-    // );
-    //
-    // LightInfo lights[3];
-    // lights[0] = LightInfo(
-    //     vec4(0.0, 3.0, 1.0, 1.0),
-    //     vec3(0.1, 0.1, 0.1),
-    //     vec3(0.8, 0.8, 0.8),
-    //     vec3(0.0, 0.0, 0.0)
-    // );
-    // lights[1] = LightInfo(
-    //     vec4(0.0, 3.0, 5.0, 1.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(0.2, 0.2, 0.8),
-    //     vec3(0.0, 0.0, 0.0)
-    // );
-    // lights[2] = LightInfo(
-    //     vec4(0.0, 3.0, -5.0, 1.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(0.2, 0.2, 0.2),
-    //     vec3(0.0, 0.0, 0.0)
-    // );
-    //
-    // const int lightCount = 3;
-    
-    // MaterialInfo material1;
-    // material1.Ambient = vec3(1.0, 1.0, 1.0);
-    // material1.Diffuse = vec3(0.8, 0.8, 0.8);
-    // material1.Specular = vec3(1.0, 1.0, 1.0);
-    // material1.Shininess = 0.8;
     
     highp vec4 transformedNormal = normalMat * vec4(aVertexNormal, 1.0);
     vec4 eyeCoords = viewingMat * vec4(aVertexPosition, 1.0);

@@ -194,18 +194,106 @@ window.ExperimentalScene = (function () {
                 position: {x:0, y:1, z:-1.5},
                 orientation: {x:0, y:Math.PI}
             },
-            cam1: {
+            cam1y: {
                 position: {x:0, y:1.5, z:1.5},
+                orientation: {x:0, y:0, z:0}
+            },
+            cam1: {
+                position: {x:0, y:1.5, z:4.5},
                 orientation: {x:0, y:0, z:0}
             }
         }
         
+        /* Prerequisites are items that will be loaded before the scene setup. Scene setup will be */
+        /* forced to wait until they finish loading, so anything fundamental to the initialization */
+        /* of the scene should be considered a prerequisite. */
+        /* Each of these will be mapped into scene.<thingtype>.<label> once built. */
         this.prerequisites = {
-            shaders: [],
-            meshes: [],
-            textures: [],
+            shaders: [
+                /* Basic is very basic and doesn't take lighting into account */
+                {label: 'basic', 
+                 srcVertexShader: '//assets.meta4vr.net/shader/basic.vs', 
+                 srcFragmentShader: '//assets.meta4vr.net/shader/basic.fs'},
+                /* Diffuse is a fairly basic shader; no setup required and nearly impossible to break */
+                {label: 'diffuse', 
+                 srcVertexShader: 'diffuse2.vs', 
+                 srcFragmentShader: 'diffuse2.fs'},
+                /* ADS is Ambient Diffuse Specular; a fairly flexible shader which supports up to 7 positional */
+                /* lights, and materials. */
+                {label: 'ads',
+                 srcVertexShader: 'ads_v1.vs', 
+                 srcFragmentShader: 'ads_v1.fs'}
+            ],
+            meshes: [
+               {label: 'controller', src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj'}
+            ],
+            textureColors: [
+                
+            ],
+            textures: [
+                {label: 'concrete01', src: '//assets.meta4vr.net/texture/concrete01.jpg'}
+            ],
+            materials: [
+                {label: 'concrete', textureLabel: 'concrete01', shaderLabel: 'ads', ambient:[1,1,1], diffuse:[0.5,0.5,0.5]},
+                {label: 'matteplastic', textureLabel: 'white', shaderLabel: 'ads', ambient:[0,0,0], diffuse:[0.8, 0.8, 0.8]}
+            ]
             
         }
+        
+        // {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
+        // {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'},
+        // {srcFs: 'ads_v1.fs', srcVs: 'ads_v1.vs', label: 'ads'}
+        
+        
+        this.lights = [
+            {
+                position: [0.0, 3.0, 1.0, 1.0],
+                ambient: [0.5, 0.5, 0.5],
+                diffuse: [0.8, 0.8, 0.8],
+                specular: [0.0, 0.0, 0.0]
+            },
+            {
+                position: [0.0, 3.0, 5.0, 1.0],
+                ambient: [0.0, 0.0, 0.0],
+                diffuse: [0.2, 0.2, 0.8],
+                specular: [0.0, 0.0, 0.0]
+            },
+            {
+                position: [0.0, 3.0, -5.0, 1.0],
+                ambient: [0.0, 0.0, 0.0],
+                diffuse: [0.2, 0.2, 0.2],
+                specular: [0.0, 0.0, 0.0]
+            }
+        ];
+        
+        // this.materials = [
+        //     {}
+        //     ambient: null,
+        //     diffuse: null,
+        //     specular:
+        //     shininess:
+        // ];
+
+        // scene.gl.uniform3fv(u['material.Ambient'], [1.0, 1.0, 1.0]);
+        // scene.gl.uniform3fv(u['material.Diffuse'], [0.8, 0.8, 0.8]);
+        // scene.gl.uniform3fv(u['material.Specular'], [1.0, 1.0, 1.0]);
+        // scene.gl.uniform1f(u['material.Shininess'], 0);
+        //
+        // scene.gl.uniform4fv(u['lights[1].Position'], [0.0, 3.0, 1.0, 1.0]);
+        // scene.gl.uniform3fv(u['lights[1].Ambient'], [0.1, 0.1, 0.1]);
+        // scene.gl.uniform3fv(u['lights[1].Diffuse'], [0.8, 0.8, 0.8]);
+        // scene.gl.uniform3fv(u['lights[1].Specular'], [0.0, 0.0, 0.0]);
+        //
+        // scene.gl.uniform4fv(u['lights[2].Position'], [0.0, 3.0, 5.0, 1.0]);
+        // scene.gl.uniform3fv(u['lights[2].Ambient'], [0.0, 0.0, 0.0]);
+        // scene.gl.uniform3fv(u['lights[2].Diffuse'], [0.2, 0.2, 0.8]);
+        // scene.gl.uniform3fv(u['lights[2].Specular'], [0.0, 0.0, 0.0]);
+        //
+        // scene.gl.uniform4fv(u['lights[3].Position'], [0.0, 3.0, -5.0, 1.0]);
+        // scene.gl.uniform3fv(u['lights[3].Ambient'], [0.0, 0.0, 0.0]);
+        // scene.gl.uniform3fv(u['lights[3].Diffuse'], [0.2, 0.2, 0.2]);
+        // scene.gl.uniform3fv(u['lights[3].Specular'], [0.0, 0.0, 0.0]);
+        //
         
         this.previews = [];
         this.previewIdx = 0;
@@ -345,7 +433,7 @@ window.ExperimentalScene = (function () {
                         var placement = grid.getPlacementForGridPosition(modelIdx);
                         // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
                         var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:0.25}, placement.orientation,
-                            {shaderLabel:modelIdx % 2 && 'ads' || 'diffuse', textureLabel:'white', groupLabel:'previews'}
+                            {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
                         );
                         newPrev.metadata.name = modelInf.name;
                         newPrev.metadata.gridIdx = modelIdx;
@@ -389,7 +477,7 @@ window.ExperimentalScene = (function () {
         var previewObj;
         if (previewMesh) {
             previewObj = new FCShapes.MeshShape(previewMesh, null, {scale:0.9}, 
-                                        null, {shaderLabel:'diffuse', textureLabel:'skin_1'});
+                                        null, {materialLabel:'matteplastic', textureLabel:'skin_1'});
             scene.addObject(previewObj);
         }
         
@@ -401,7 +489,7 @@ window.ExperimentalScene = (function () {
         
         FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name))
         .then(function (mesh) {
-            var newObj = new FCShapes.MeshShape(mesh, null, {scale:0.9}, null, {shaderLabel:'diffuse', textureLabel:'skin_2'});
+            var newObj = new FCShapes.MeshShape(mesh, null, {scale:0.9}, null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
             if (previewObj) {
                 scene.removeObject(previewObj);
             }
@@ -475,13 +563,13 @@ window.ExperimentalScene = (function () {
         return new Promise(function (resolve, reject) {
 
             /* Load textures */
-            var textures = [
-                {src: '//assets.meta4vr.net/texture/concrete01.jpg', label: 'concrete01'}
-            ];
-            for (var i=0; i<textures.length; i++) {
-                var myTex = textures[i];
-                prereqPromises.push(scene.addTextureFromImage(myTex.src, myTex.label));
-            }
+            // var textures = [
+            //     {src: '//assets.meta4vr.net/texture/concrete01.jpg', label: 'concrete01'}
+            // ];
+            // for (var i=0; i<textures.length; i++) {
+            //     var myTex = textures[i];
+            //     prereqPromises.push(scene.addTextureFromImage(myTex.src, myTex.label));
+            // }
             
             /* Build solid colour textures */
             var texColors = [
@@ -516,77 +604,86 @@ window.ExperimentalScene = (function () {
             }
                         
             /* Load meshes */
-            var meshes = [
-                {src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj', label: 'controller'}
-            ];
-            for (var i=0; i<meshes.length; i++) {
-                var myMesh = meshes[i];
-                prereqPromises.push(new Promise(function (resolve, reject) {
-                    if (myMesh.src.endsWith('.obj')) {
-                        FCShapeUtils.loadObj(myMesh.src)
-                        .then(function (mesh) {
-                            scene.meshes[myMesh.label] = mesh;
-                            resolve();
-                        })
-                    };
-                    
-                }))
-            }
+            // var meshes = [
+            //     {src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj', label: 'controller'}
+            // ];
+            // for (var i=0; i<meshes.length; i++) {
+            //     var myMesh = meshes[i];
+            //     prereqPromises.push(new Promise(function (resolve, reject) {
+            //         if (myMesh.src.endsWith('.obj')) {
+            //             FCShapeUtils.loadObj(myMesh.src)
+            //             .then(function (mesh) {
+            //                 scene.meshes[myMesh.label] = mesh;
+            //                 resolve();
+            //             })
+            //         };
+            //
+            //     }))
+            // }
         
             /* Load shaders */
-            var shaders = [
-                {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
-                {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'},
-                {srcFs: 'ads_v1.fs', srcVs: 'ads_v1.vs', label: 'ads'}
-            ];
-            for (var i=0; i<shaders.length; i++) {
-                var myShader = shaders[i];
-                prereqPromises.push(new Promise(function (resolve, reject) {
-                    scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
-                        position: 0,
-                        texCoord: 1,
-                        vertexNormal: 2
-                    })
-                    .then(function (shaderInfo) {
-                        console.log('Compiled shader ' + shaderInfo.label);
-                        if (shaderInfo.label == 'ads') {
-                            shaderInfo.program.use();
-                            console.log(shaderInfo.program.uniform);
-                            /* Set up scene lights */
-                            // var ads = this.shaders.ads;
-                            var u = shaderInfo.program.uniform;
-                            scene.gl.uniform3fv(u['material.Ambient'], [1.0, 1.0, 1.0]);
-                            scene.gl.uniform3fv(u['material.Diffuse'], [0.8, 0.8, 0.8]);
-                            scene.gl.uniform3fv(u['material.Specular'], [1.0, 1.0, 1.0]);
-                            scene.gl.uniform1f(u['material.Shininess'], 0.8);
-
-                            scene.gl.uniform4fv(u['lights[1].Position'], [0.0, 3.0, 1.0, 1.0]);
-                            scene.gl.uniform3fv(u['lights[1].Ambient'], [0.1, 0.1, 0.1]);
-                            scene.gl.uniform3fv(u['lights[1].Diffuse'], [0.8, 0.8, 0.8]);
-                            scene.gl.uniform3fv(u['lights[1].Specular'], [0.0, 0.0, 0.0]);
-                            
-                            scene.gl.uniform4fv(u['lights[2].Position'], [0.0, 3.0, 5.0, 1.0]);
-                            scene.gl.uniform3fv(u['lights[2].Ambient'], [0.0, 0.0, 0.0]);
-                            scene.gl.uniform3fv(u['lights[2].Diffuse'], [0.2, 0.2, 0.8]);
-                            scene.gl.uniform3fv(u['lights[2].Specular'], [0.0, 0.0, 0.0]);
-                            
-                            scene.gl.uniform4fv(u['lights[3].Position'], [0.0, 3.0, -5.0, 1.0]);
-                            scene.gl.uniform3fv(u['lights[3].Ambient'], [0.0, 0.0, 0.0]);
-                            scene.gl.uniform3fv(u['lights[3].Diffuse'], [0.2, 0.2, 0.2]);
-                            scene.gl.uniform3fv(u['lights[3].Specular'], [0.0, 0.0, 0.0]);
-                            
-                            // scene.gl.uniform4fv(u['lights[2].Position'], []);
-                            // scene.gl.uniform3fv(u['lights[2].Ambient'], []);
-                            // scene.gl.uniform3fv(u['lights[2].Diffuse'], []);
-                            // scene.gl.uniform3fv(u['lights[2].Specular'], []);
-                            
-                            
-                            
-                        }
-                        resolve();
-                    })
-                }));
-            }
+            // var shaders = [
+            //     {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
+            //     {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'},
+            //     {srcFs: 'ads_v1.fs', srcVs: 'ads_v1.vs', label: 'ads'}
+            // ];
+            // for (var i=0; i<shaders.length; i++) {
+            //     var myShader = shaders[i];
+            //     prereqPromises.push(new Promise(function (resolve, reject) {
+            //         scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
+            //             position: 0,
+            //             texCoord: 1,
+            //             vertexNormal: 2
+            //         })
+            //         .then(function (shaderInfo) {
+            //             console.log('Compiled shader ' + shaderInfo.label);
+            //             if (shaderInfo.label == 'ads') {
+            //                 shaderInfo.program.use();
+            //                 console.log(shaderInfo.program.uniform);
+            //                 /* Set up scene lights */
+            //                 // var ads = this.shaders.ads;
+            //                 var u = shaderInfo.program.uniform;
+            //                 scene.gl.uniform3fv(u['material.Ambient'], [1.0, 1.0, 1.0]);
+            //                 scene.gl.uniform3fv(u['material.Diffuse'], [0.8, 0.8, 0.8]);
+            //                 scene.gl.uniform3fv(u['material.Specular'], [1.0, 1.0, 1.0]);
+            //                 scene.gl.uniform1f(u['material.Shininess'], 0);
+            //
+            //                 for (var i=0; i<scene.lights.length; i++) {
+            //                     var l = scene.lights[i];
+            //                     var uBase = 'lights['+(i+1)+'].';
+            //                     scene.gl.uniform4fv(u[uBase+'Position'], l.position);
+            //                     scene.gl.uniform3fv(u[uBase+'Ambient'], l.ambient || [0.0, 0.0, 0.0]);
+            //                     scene.gl.uniform3fv(u[uBase+'Diffuse'], l.diffuse || [0.0, 0.0, 0.0]);
+            //                     scene.gl.uniform3fv(u[uBase+'Specular'], l.specular || [0.0, 0.0, 0.0]);
+            //                 }
+            //
+            //                 // scene.gl.uniform4fv(u['lights[1].Position'], [0.0, 3.0, 1.0, 1.0]);
+            //                 // scene.gl.uniform3fv(u['lights[1].Ambient'], [0.1, 0.1, 0.1]);
+            //                 // scene.gl.uniform3fv(u['lights[1].Diffuse'], [0.8, 0.8, 0.8]);
+            //                 // scene.gl.uniform3fv(u['lights[1].Specular'], [0.0, 0.0, 0.0]);
+            //                 //
+            //                 // scene.gl.uniform4fv(u['lights[2].Position'], [0.0, 3.0, 5.0, 1.0]);
+            //                 // scene.gl.uniform3fv(u['lights[2].Ambient'], [0.0, 0.0, 0.0]);
+            //                 // scene.gl.uniform3fv(u['lights[2].Diffuse'], [0.2, 0.2, 0.8]);
+            //                 // scene.gl.uniform3fv(u['lights[2].Specular'], [0.0, 0.0, 0.0]);
+            //                 //
+            //                 // scene.gl.uniform4fv(u['lights[3].Position'], [0.0, 3.0, -5.0, 1.0]);
+            //                 // scene.gl.uniform3fv(u['lights[3].Ambient'], [0.0, 0.0, 0.0]);
+            //                 // scene.gl.uniform3fv(u['lights[3].Diffuse'], [0.2, 0.2, 0.2]);
+            //                 // scene.gl.uniform3fv(u['lights[3].Specular'], [0.0, 0.0, 0.0]);
+            //
+            //                 // scene.gl.uniform4fv(u['lights[2].Position'], []);
+            //                 // scene.gl.uniform3fv(u['lights[2].Ambient'], []);
+            //                 // scene.gl.uniform3fv(u['lights[2].Diffuse'], []);
+            //                 // scene.gl.uniform3fv(u['lights[2].Specular'], []);
+            //
+            //
+            //
+            //             }
+            //             resolve();
+            //         })
+            //     }));
+            // }
             
             /* Wait for everything to finish and resolve() */
             Promise.all(prereqPromises).then(function () {
@@ -780,7 +877,7 @@ window.ExperimentalScene = (function () {
             _hidden_beneath_floor,
             {w: 0.3, h:0.3, d:0.3},
             null,
-            {label: 'cursor', shaderLabel: 'diffuse', textureLabel: 'red'}
+            {label: 'cursor', materialLabel:'matteplastic', textureLabel: 'red'}
         );
         /* Make the cursor revolve slowly */
         cursor.behaviours.push(function (drawable, timePoint) {
@@ -793,7 +890,8 @@ window.ExperimentalScene = (function () {
             {x: 0, z: 0, y: -0.02},
             {minX: -20, maxX: 20, minY: -20, maxY: 20},
             {x:270/DEG, y:0/DEG, z:0/DEG},
-            {label: 'floor', textureLabel: 'concrete01', shaderLabel: 'diffuse', segmentsX: 10, segmentsY: 10}
+            // {label: 'floor', textureLabel: 'concrete01', shaderLabel: 'diffuse', segmentsX: 10, segmentsY: 10}
+            {label: 'floor', materialLabel: 'concrete', segmentsX: 10, segmentsY: 10}
         );
         /* We use the floor collider to determine where the user is pointing their controller, and hence, */
         /* the location for the cursor. There are two stages to this, first is setting up the collider. */
