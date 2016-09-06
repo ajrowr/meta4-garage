@@ -336,9 +336,9 @@ window.ExperimentalScene = (function () {
         this.previews = [];
         this.previewIdx = 0;
         
+        this.modelFolder = 'statuary';
+        
         this.modelListUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=detail';
-        this.modelListUrl = 'http://meshbase.meta4vr.net/mesh/incoming?mode=detail';
-        // this.modelPreviewUrlFormat = 'http://meshbase.io.codex.cx/mesher.pycg/@@?mode=preview';
         this.modelPreviewUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=grade';
         this.modelUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=mesh';
         this.statusIndicator = null;
@@ -557,9 +557,10 @@ window.ExperimentalScene = (function () {
     
     Scene.prototype.loadModelList = function () {
         var scene = this;
+        var listUrl = scene.modelListUrlFormat.replace('@@', scene.modelFolder);
         return new Promise(function (resolve, reject) {
             var xh = new XMLHttpRequest();
-            xh.open('GET', scene.modelListUrl, true);
+            xh.open('GET', listUrl, true);
             xh.responseType = 'json';
             xh.onreadystatechange = function () {
                 if (xh.readyState == 4) {
@@ -945,6 +946,42 @@ window.ExperimentalScene = (function () {
         // gl.uniform3fv(ads.uniform['material.Ambient'], [1,1,1]);
         // gl.uniform3fv(ads.uniform['lights[1].Ambient'], [1,1,1]);
         
+        
+        var showText = function (textStr, basePos, baseOri, params) {
+            var p = params || {};
+            var groupLabel = p.groupLabel || 'letters';
+            var materialLabel = p.materialLabel || 'matteplastic';
+            var textureLabel = p.textureLabel || null;
+            var scale = p.scale || 1.0;
+            var rotQuat = quat.create();
+            quat.rotateX(rotQuat, rotQuat, baseOri.x);
+            quat.rotateY(rotQuat, rotQuat, baseOri.y);
+            quat.rotateZ(rotQuat, rotQuat, baseOri.z);
+            var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
+            var mat = mat4.create();
+            mat4.fromRotationTranslation(mat, rotQuat, transVec);
+            
+            var glyphPromises = [];
+            var xOffset = 0;
+            for (var i=0; i<textStr.length; i++) {
+                var glyph;
+                var meshPath = '//meshbase.meta4vr.net/typography/lato-bold/glyph_'+textStr.charCodeAt(i)+'.obj';
+                glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
+            }
+            Promise.all(glyphPromises).then(function (meshes) {
+                for (var i=0; i<meshes.length; i++) {
+                    var mesh = meshes[i];
+                    var meshInfo = FCMeshTools.analyseMesh(mesh);
+                    glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
+                                {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
+                    glyph.inheritedMatrix = mat;
+                    scene.addObject(glyph);
+                    xOffset += meshInfo.maxX*1.2*scale;
+                
+                }
+            });
+        }
+        showText(scene.modelFolder, {x:1.3, y:3.0, z:0.5+scene.uiLayout.grid.offsetZ(scene.stageParams)}, {x:90/DEG, y:0, z:180/DEG}, {scale:0.5, textureLabel:'royalblue'});
         
     }
     
