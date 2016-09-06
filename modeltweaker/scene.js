@@ -26,6 +26,10 @@ var SelectGrid = function (params) {
     this.specialSelection = null;
     this.specialItems = {PAGE_LEFT: null, PAGE_RIGHT: null};
     
+    this.ellipseScale = p.ellipseScale || {
+        width: 1.3, depth: -0.6
+    };
+    
 }
 
 SelectGrid.prototype.setRange = function (rStart, rLength) {
@@ -87,12 +91,13 @@ SelectGrid.prototype.getPlacementForGridPosition = function (gridIdx) {
     var grid = this;
     var row = Math.floor(gridIdx / grid.perRow);
     var idxInRow = gridIdx % grid.perRow;
-    var itemAngle = Math.PI+(((Math.PI)/grid.perRow) * idxInRow);
+    var itemAngle = (((Math.PI)/grid.perRow) * idxInRow);
+    // gridItemAngle //
     return {
         location: {
-            x: grid.offset.x+(1.3 * this.scale * Math.cos(itemAngle)),
+            x: grid.offset.x+(grid.ellipseScale.width * this.scale * Math.cos(itemAngle)),
             y: grid.offset.y+(row * grid.rowHeight),
-            z: grid.offset.z+(0.6*(this.scale * Math.sin(itemAngle))),
+            z: grid.offset.z+(grid.ellipseScale.depth*(this.scale * Math.sin(itemAngle))),
         },
         orientation: {
             x: 0,
@@ -240,60 +245,93 @@ window.ExperimentalScene = (function () {
             
         }
         
-        // {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
-        // {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'},
-        // {srcFs: 'ads_v1.fs', srcVs: 'ads_v1.vs', label: 'ads'}
-        
-        
-        this.lights = [
-            {
+        this.lightPool = {
+            plainWhiteAmbientOverhead: {
                 position: [0.0, 3.0, 1.0, 1.0],
                 ambient: [0.5, 0.5, 0.5],
-                diffuse: [0.8, 0.8, 0.8],
+                diffuse: [0.8, 0.8, 0.7],
                 specular: [0.0, 0.0, 0.0]
             },
-            {
+            blueBackfill: {
                 position: [0.0, 3.0, 5.0, 1.0],
                 ambient: [0.0, 0.0, 0.0],
                 diffuse: [0.2, 0.2, 0.8],
                 specular: [0.0, 0.0, 0.0]
             },
-            {
+            dimWhiteBackfill: {
                 position: [0.0, 3.0, -5.0, 1.0],
                 ambient: [0.0, 0.0, 0.0],
                 diffuse: [0.2, 0.2, 0.2],
                 specular: [0.0, 0.0, 0.0]
             }
+            
+        }
+                
+        this.lights = [
+            this.lightPool.plainWhiteAmbientOverhead, 
+            this.lightPool.blueBackfill, 
+            this.lightPool.dimWhiteBackfill
         ];
         
-        // this.materials = [
-        //     {}
-        //     ambient: null,
-        //     diffuse: null,
-        //     specular:
-        //     shininess:
-        // ];
-
-        // scene.gl.uniform3fv(u['material.Ambient'], [1.0, 1.0, 1.0]);
-        // scene.gl.uniform3fv(u['material.Diffuse'], [0.8, 0.8, 0.8]);
-        // scene.gl.uniform3fv(u['material.Specular'], [1.0, 1.0, 1.0]);
-        // scene.gl.uniform1f(u['material.Shininess'], 0);
-        //
-        // scene.gl.uniform4fv(u['lights[1].Position'], [0.0, 3.0, 1.0, 1.0]);
-        // scene.gl.uniform3fv(u['lights[1].Ambient'], [0.1, 0.1, 0.1]);
-        // scene.gl.uniform3fv(u['lights[1].Diffuse'], [0.8, 0.8, 0.8]);
-        // scene.gl.uniform3fv(u['lights[1].Specular'], [0.0, 0.0, 0.0]);
-        //
-        // scene.gl.uniform4fv(u['lights[2].Position'], [0.0, 3.0, 5.0, 1.0]);
-        // scene.gl.uniform3fv(u['lights[2].Ambient'], [0.0, 0.0, 0.0]);
-        // scene.gl.uniform3fv(u['lights[2].Diffuse'], [0.2, 0.2, 0.8]);
-        // scene.gl.uniform3fv(u['lights[2].Specular'], [0.0, 0.0, 0.0]);
-        //
-        // scene.gl.uniform4fv(u['lights[3].Position'], [0.0, 3.0, -5.0, 1.0]);
-        // scene.gl.uniform3fv(u['lights[3].Ambient'], [0.0, 0.0, 0.0]);
-        // scene.gl.uniform3fv(u['lights[3].Diffuse'], [0.2, 0.2, 0.2]);
-        // scene.gl.uniform3fv(u['lights[3].Specular'], [0.0, 0.0, 0.0]);
-        //
+        this.uiLayouts = {
+            LAYOUT_STANDING: {
+                grid: {
+                    rows: 4,
+                    columns: 8,
+                    previewScale: 0.25,
+                    rowHeight: 0.6,
+                    offsetZ: function (sp) {return -0.3*sp.sizeZ;},
+                    ellipseScale: {width:1.3, depth:-0.6},
+                    itemPosition: function (sp, perRow, idxInRow) {return Math.PI+(((Math.PI)/grid.perRow) * idxInRow);},
+                    itemOrientation: function (sp, idxInRow) {}
+                },
+                arrowDisposition: function (sp) {
+                    return {
+                        L: {
+                            pos: {x:-0.6*sp.sizeX, y:1.3, z:-0.3*sp.sizeZ},
+                            ori: {x:0.5*Math.PI, y:Math.PI, z:0}
+                        },
+                        R: {
+                            pos: {x:0.6*sp.sizeX, y:1.3, z:-0.3*sp.sizeZ},
+                            ori: {x:0.5*Math.PI, y:0, z:0}
+                        }
+                    }
+                },
+                itemDisplay: {
+                    pos: {x:0, y:0, z:0},
+                    scale: 0.9
+                }
+            },
+            LAYOUT_DESK: {
+                grid: {
+                    rows: 3,
+                    columns: 6,
+                    previewScale: 0.35,
+                    rowHeight: 0.9,
+                    offsetZ: function (sp) {return 1.3*sp.sizeZ;},
+                    ellipseScale: {width:1.3, depth:0.6},
+                    itemPosition: function (sp, perRow, idxInRow) {return ((Math.PI)/perRow) * idxInRow;},
+                    itemOrientation: function (sp, idxInRow) {}
+                },
+                arrowDisposition: function (sp) {
+                    return {
+                        R: {
+                            pos: {x:-0.6*sp.sizeX, y:1.3, z:1.3*sp.sizeZ},
+                            ori: {x:0.5*Math.PI, y:Math.PI, z:0}
+                        },
+                        L: {
+                            pos: {x:0.6*sp.sizeX, y:1.3, z:1.3*sp.sizeZ},
+                            ori: {x:0.5*Math.PI, y:0, z:0}
+                        }
+                    }
+                },
+                itemDisplay: {
+                    pos: {x:0, y:0, z:2.5},
+                    scale: 0.6
+                }
+            }
+        };
+        this.uiLayout = this.uiLayouts.LAYOUT_DESK;
         
         this.previews = [];
         this.previewIdx = 0;
@@ -345,13 +383,18 @@ window.ExperimentalScene = (function () {
         }
     }
     
-    /* Form meshes which are kind enough to be previewable, show the previews */
+    /* From meshes which are kind enough to be previewable, show the previews */
     Scene.prototype.setupPreviews = function (rangeStart, rangeLength) {
         var scene = this;
+        var layout = scene.uiLayout;
         var prevIdx = 0;
         if (!scene.previewGrid) {
             scene.previewGrid = new SelectGrid(
-                {rowHeight: 0.6, perRow: 8, offset:{z:-0.3*scene.stageParams.sizeZ}}
+                // {rowHeight: 0.6, perRow: 8, offset:{z:1.3*scene.stageParams.sizeZ}}
+                {rowHeight: layout.grid.rowHeight, perRow: layout.grid.columns,
+                    rows: layout.grid.rows, columns: layout.grid.columns, 
+                    ellipseScale: layout.grid.ellipseScale,
+                 offset:{z:layout.grid.offsetZ(scene.stageParams)}}
             );
             scene.previewGrid.setData(scene.modelList.files);
             
@@ -375,11 +418,11 @@ window.ExperimentalScene = (function () {
                 };
                 return arrowActivate;
             };
-            var arrowPosLeft = {x:-0.6*scene.stageParams.sizeX, y:1.3, z:-0.3*scene.stageParams.sizeZ};
-            var arrowPosRight = {x:arrowPosLeft.x*-1, y:arrowPosLeft.y, z:arrowPosLeft.z};
-        
+            
+            var arrowDisp = scene.uiLayout.arrowDisposition(scene.stageParams);
+            
             var arrowLeft = new FCShapes.LatheExtruderShape(
-                arrowPosLeft, arrowSize, {x:0.5*Math.PI, y:Math.PI, z:0}, 
+                arrowDisp.L.pos, arrowSize, arrowDisp.L.ori, 
                 arrowParams
             );
             arrowLeft.interactions['select'] = arrowSelect;
@@ -388,7 +431,7 @@ window.ExperimentalScene = (function () {
             scene.previewGrid.specialItems.PAGE_LEFT = arrowLeft;
 
             var arrowRight = new FCShapes.LatheExtruderShape(
-                arrowPosRight, arrowSize, {x:0.5*Math.PI, y:0, z:0}, 
+                arrowDisp.R.pos, arrowSize, arrowDisp.R.ori, 
                 arrowParams
             );
             arrowRight.interactions['select'] = arrowSelect;
@@ -432,7 +475,7 @@ window.ExperimentalScene = (function () {
                         // var placement = grid.nextPlacement();
                         var placement = grid.getPlacementForGridPosition(modelIdx);
                         // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
-                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:0.25}, placement.orientation,
+                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:layout.grid.previewScale}, placement.orientation,
                             {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
                         );
                         newPrev.metadata.name = modelInf.name;
@@ -470,15 +513,21 @@ window.ExperimentalScene = (function () {
     
     Scene.prototype.showItemWithIndex = function (idx, previewMesh) {
         var scene = this;
+        var layout = scene.uiLayout;
         if (scene.currentItem.model) {
             scene.removeObject(scene.currentItem.model, true);
         }
         var itemInf = scene.modelList.files[idx];
         var previewObj;
         if (previewMesh) {
-            previewObj = new FCShapes.MeshShape(previewMesh, null, {scale:0.9}, 
+            if (scene.previewObject) {
+                scene.removeObject(scene.previewObject);
+                scene.previewObject = null;
+            }
+            previewObj = new FCShapes.MeshShape(previewMesh, layout.itemDisplay.pos, {scale:layout.itemDisplay.scale}, 
                                         null, {materialLabel:'matteplastic', textureLabel:'skin_1'});
             scene.addObject(previewObj);
+            scene.previewObject = previewObj;
         }
         
         scene.showMessage([
@@ -489,9 +538,13 @@ window.ExperimentalScene = (function () {
         
         FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name))
         .then(function (mesh) {
-            var newObj = new FCShapes.MeshShape(mesh, null, {scale:0.9}, null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
-            if (previewObj) {
-                scene.removeObject(previewObj);
+            var s = scene.previewObject && scene.previewObject.scaleFactor || layout.itemDisplay.scale;
+            var newObj = new FCShapes.MeshShape(mesh, layout.itemDisplay.pos, {scale:s}, 
+                                null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
+            if (scene.previewObject) {
+                newObj.orientation = scene.previewObject.orientation;
+                scene.removeObject(scene.previewObject);
+                scene.previewObject = null;
             }
             scene.addObject(newObj);
             scene.currentItem.model = newObj;
@@ -562,15 +615,6 @@ window.ExperimentalScene = (function () {
         var prereqPromises = [];
         return new Promise(function (resolve, reject) {
 
-            /* Load textures */
-            // var textures = [
-            //     {src: '//assets.meta4vr.net/texture/concrete01.jpg', label: 'concrete01'}
-            // ];
-            // for (var i=0; i<textures.length; i++) {
-            //     var myTex = textures[i];
-            //     prereqPromises.push(scene.addTextureFromImage(myTex.src, myTex.label));
-            // }
-            
             /* Build solid colour textures */
             var texColors = [
                 {hex: '#00007f', label: 'navy'},
@@ -603,88 +647,6 @@ window.ExperimentalScene = (function () {
                 scene.addTextureFromColor(myTexColor, myTexColor.label);
             }
                         
-            /* Load meshes */
-            // var meshes = [
-            //     {src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj', label: 'controller'}
-            // ];
-            // for (var i=0; i<meshes.length; i++) {
-            //     var myMesh = meshes[i];
-            //     prereqPromises.push(new Promise(function (resolve, reject) {
-            //         if (myMesh.src.endsWith('.obj')) {
-            //             FCShapeUtils.loadObj(myMesh.src)
-            //             .then(function (mesh) {
-            //                 scene.meshes[myMesh.label] = mesh;
-            //                 resolve();
-            //             })
-            //         };
-            //
-            //     }))
-            // }
-        
-            /* Load shaders */
-            // var shaders = [
-            //     {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
-            //     {srcFs: 'diffuse2.fs', srcVs: 'diffuse2.vs', label: 'diffuse'},
-            //     {srcFs: 'ads_v1.fs', srcVs: 'ads_v1.vs', label: 'ads'}
-            // ];
-            // for (var i=0; i<shaders.length; i++) {
-            //     var myShader = shaders[i];
-            //     prereqPromises.push(new Promise(function (resolve, reject) {
-            //         scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
-            //             position: 0,
-            //             texCoord: 1,
-            //             vertexNormal: 2
-            //         })
-            //         .then(function (shaderInfo) {
-            //             console.log('Compiled shader ' + shaderInfo.label);
-            //             if (shaderInfo.label == 'ads') {
-            //                 shaderInfo.program.use();
-            //                 console.log(shaderInfo.program.uniform);
-            //                 /* Set up scene lights */
-            //                 // var ads = this.shaders.ads;
-            //                 var u = shaderInfo.program.uniform;
-            //                 scene.gl.uniform3fv(u['material.Ambient'], [1.0, 1.0, 1.0]);
-            //                 scene.gl.uniform3fv(u['material.Diffuse'], [0.8, 0.8, 0.8]);
-            //                 scene.gl.uniform3fv(u['material.Specular'], [1.0, 1.0, 1.0]);
-            //                 scene.gl.uniform1f(u['material.Shininess'], 0);
-            //
-            //                 for (var i=0; i<scene.lights.length; i++) {
-            //                     var l = scene.lights[i];
-            //                     var uBase = 'lights['+(i+1)+'].';
-            //                     scene.gl.uniform4fv(u[uBase+'Position'], l.position);
-            //                     scene.gl.uniform3fv(u[uBase+'Ambient'], l.ambient || [0.0, 0.0, 0.0]);
-            //                     scene.gl.uniform3fv(u[uBase+'Diffuse'], l.diffuse || [0.0, 0.0, 0.0]);
-            //                     scene.gl.uniform3fv(u[uBase+'Specular'], l.specular || [0.0, 0.0, 0.0]);
-            //                 }
-            //
-            //                 // scene.gl.uniform4fv(u['lights[1].Position'], [0.0, 3.0, 1.0, 1.0]);
-            //                 // scene.gl.uniform3fv(u['lights[1].Ambient'], [0.1, 0.1, 0.1]);
-            //                 // scene.gl.uniform3fv(u['lights[1].Diffuse'], [0.8, 0.8, 0.8]);
-            //                 // scene.gl.uniform3fv(u['lights[1].Specular'], [0.0, 0.0, 0.0]);
-            //                 //
-            //                 // scene.gl.uniform4fv(u['lights[2].Position'], [0.0, 3.0, 5.0, 1.0]);
-            //                 // scene.gl.uniform3fv(u['lights[2].Ambient'], [0.0, 0.0, 0.0]);
-            //                 // scene.gl.uniform3fv(u['lights[2].Diffuse'], [0.2, 0.2, 0.8]);
-            //                 // scene.gl.uniform3fv(u['lights[2].Specular'], [0.0, 0.0, 0.0]);
-            //                 //
-            //                 // scene.gl.uniform4fv(u['lights[3].Position'], [0.0, 3.0, -5.0, 1.0]);
-            //                 // scene.gl.uniform3fv(u['lights[3].Ambient'], [0.0, 0.0, 0.0]);
-            //                 // scene.gl.uniform3fv(u['lights[3].Diffuse'], [0.2, 0.2, 0.2]);
-            //                 // scene.gl.uniform3fv(u['lights[3].Specular'], [0.0, 0.0, 0.0]);
-            //
-            //                 // scene.gl.uniform4fv(u['lights[2].Position'], []);
-            //                 // scene.gl.uniform3fv(u['lights[2].Ambient'], []);
-            //                 // scene.gl.uniform3fv(u['lights[2].Diffuse'], []);
-            //                 // scene.gl.uniform3fv(u['lights[2].Specular'], []);
-            //
-            //
-            //
-            //             }
-            //             resolve();
-            //         })
-            //     }));
-            // }
-            
             /* Wait for everything to finish and resolve() */
             Promise.all(prereqPromises).then(function () {
                 resolve();
@@ -724,18 +686,19 @@ window.ExperimentalScene = (function () {
     
     Scene.prototype.handleButton_MODE_OBJ_ROT_SCALE = function (btnIdx, btnStatus, sector, myButton, extra) {
         var scene = this;
+        var myObj = scene.previewObject || scene.currentItem && scene.currentItem.model
         if (btnIdx == 0 && btnStatus == 'held') {
             if (sector == 'n') {
-                scene.currentItem.model.scaleFactor *= 1.005;
+                myObj.scaleFactor *= 1.005;
             }
             else if (sector == 's') {
-                scene.currentItem.model.scaleFactor *= 0.995;
+                myObj.scaleFactor *= 0.995;
             }
             else if (sector == 'w') {
-                scene.currentItem.model.orientation.y += 0.6/DEG;
+                myObj.orientation.y += 0.6/DEG;
             }
             else if (sector == 'e') {
-                scene.currentItem.model.orientation.y -= 0.6/DEG;
+                myObj.orientation.y -= 0.6/DEG;
             }
             
         }
@@ -971,11 +934,17 @@ window.ExperimentalScene = (function () {
         scene.loadModelList()
         .then(function () {
             if (scene.autoLoadIdx) scene.loadModelAtIndex(scene.autoLoadIdx);
-            scene.setupPreviews(0, 32);
+            scene.setupPreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
         });
         
         // scene.showStatusIndicator(scene.textures.white);
         scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTexLabel])
+        
+        // var gl = scene.gl;
+        // var ads = scene.shaders.ads;
+        // gl.uniform3fv(ads.uniform['material.Ambient'], [1,1,1]);
+        // gl.uniform3fv(ads.uniform['lights[1].Ambient'], [1,1,1]);
+        
         
     }
     

@@ -49,16 +49,17 @@ void main(void) {
     // mat4 viewingMat = modelMat;
     mat4 viewingMat;
     
-    /* Normally the modelViewMatrix would be used in lighting calculations. However that turns out not to */
+    /* Normally the modelViewMatrix would be used in lighting calculations. However that turns out not to be */
     /* quite so great for VR where the user's window on the world is much more dynamic - using the MVM, things */
-    /* just look wrong. So we normally use the modelMatrix instead for calculating lighting - however this */
+    /* just look wrong. So we use the modelMatrix instead for calculating lighting - however this */
     /* ends up being pretty useless when it comes to doing anything specular :-| */
     /* Using the MVM, on the other hand, specular looks pretty fantastic for individual models - as long as you */
     /* don't move your head too much! And it seems to position the lights wrong and generally just messes things /*
     /* up for the overall scene. */
     /* So we probably want to use a custom matrix that incorporates certain aspects of the user's viewpoint */
-    /* but not all of them. Like a "flattened" MVM. Research is ongoing. */
+    /* but not all of them. Maybe a "flattened" MVM that disregards certain rotation axes? Research is ongoing. */
     /* Meanwhile if you want to use specular on something try activating the useExperimentalLightingModel uniform. */
+    /* But be prepared for weirdness. */
     bool forceExperimentalLightingModel = false;
     if (useExperimentalLightingModel || forceExperimentalLightingModel) {
         viewingMat = modelViewMat;
