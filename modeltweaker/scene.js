@@ -1,9 +1,31 @@
+/* Wishlist: */
+/*
+    - loading indicator
+    - folders
+    - tutorial / help
+    - disable arrow when no more things available
+    - better mode indicator
+    - be able to rotate preview model while mesh is loading
+    - constrain max mesh
+    - mesh sizes in json detail?
+    - mesh spam if 2nd preview is requested too quickly
+*/
+
 var DEG=360/(2*Math.PI);
 
 
 /* Grid items are the things currently being displayed and are drawables */
 /* Data items are the backing store of generic whatevers to which the grid items map. */
 /* Think of the set of grid items as a movable "window" onto the data items */
+/* Grid is not responsible for creating the gridItems, rather it yields the data items */
+/* for a range and the app uses that info to build the gridItems, which are then */
+/* set directly into grid.gridItems by index. */
+/* Eg. */
+/* myItems = grid.getDataForCurrentRange(); */
+/* for (var i=0; i<myItems.length; i++) {grid.gridItems[i] = <object built from myItems[i]>} */
+/* Note that the gridItems can actually be whatever since the grid isn't responsible for displaying them. */
+/* They don't have to be directly drawable but if they don't respond meaningfully to .interact() */
+/* then they won't be doing much ... */
 var SelectGrid = function (params) {
     var p = params || {};
     this.scale = p.scale || 1;
@@ -336,14 +358,18 @@ window.ExperimentalScene = (function () {
         this.previews = [];
         this.previewIdx = 0;
         
-        this.modelFolder = 'statuary';
+        this.fontGlyphUrlFormat = '//meshbase.meta4vr.net/_typography/lato-bold/glyph_@@.obj'
         
-        this.modelListUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=detail';
-        this.modelPreviewUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=grade';
-        this.modelUrlFormat = 'http://meshbase.meta4vr.net/mesh/@@?mode=mesh';
+        // this.modelFolder = 'statuary';
+        this.modelFolder = '';
+        
+        this.modelListUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=detail';
+        this.modelPreviewUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=grade';
+        this.modelUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=mesh';
         this.statusIndicator = null;
         
         this.previewGrid = null;
+        this.folderGrid = null;
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -381,6 +407,34 @@ window.ExperimentalScene = (function () {
                 /* Add to scene */
             })
         }
+    }
+    
+    Scene.prototype.showFolderGrid = function () {
+        var scene = this;
+        var layout = scene.uiLayout;
+        /* Configure grid */
+        var grid = new SelectGrid({
+            rowHeight: 0.4, perRow: 1,
+            rows: 10, columns: 1, 
+            offset: {z:layout.grid.offsetZ(scene.stageParams), y:0.3}
+        });
+        grid.setData(scene.modelList.folders);
+        scene.folderGrid = grid;
+        
+        grid.setRange(0,10);
+        var myFolders = grid.getDataForCurrentRange();
+        for (var i=0; i<myFolders.length; i++) {
+            var myFolder = myFolders[i];
+            var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
+            console.log(myInf);
+            scene.addText(
+                myInf.folder.label, myInf.placement.location, 
+                {x:90/DEG, y:0, z:180/DEG}, 
+                {groupLabel:'folderlist', scale: 0.6}
+            );
+            
+        }
+        
     }
     
     /* From meshes which are kind enough to be previewable, show the previews */
@@ -965,7 +1019,7 @@ window.ExperimentalScene = (function () {
             var xOffset = 0;
             for (var i=0; i<textStr.length; i++) {
                 var glyph;
-                var meshPath = '//meshbase.meta4vr.net/typography/lato-bold/glyph_'+textStr.charCodeAt(i)+'.obj';
+                var meshPath = scene.fontGlyphUrlFormat.replace('@@', textStr.charCodeAt(i));/* */
                 glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
             }
             Promise.all(glyphPromises).then(function (meshes) {
@@ -981,10 +1035,46 @@ window.ExperimentalScene = (function () {
                 }
             });
         }
-        showText(scene.modelFolder, {x:1.3, y:3.0, z:0.5+scene.uiLayout.grid.offsetZ(scene.stageParams)}, {x:90/DEG, y:0, z:180/DEG}, {scale:0.5, textureLabel:'royalblue'});
+        
+        scene.addText(scene.modelFolder, {x:1.3, y:3.0, z:0.5+scene.uiLayout.grid.offsetZ(scene.stageParams)}, {x:90/DEG, y:0, z:180/DEG}, {scale:0.5, textureLabel:'royalblue'});
         
     }
     
+    Scene.prototype.addText = function (textStr, basePos, baseOri, params) {
+        var scene = this;
+        var p = params || {};
+        var groupLabel = p.groupLabel || 'letters';
+        var materialLabel = p.materialLabel || 'matteplastic';
+        var textureLabel = p.textureLabel || null;
+        var scale = p.scale || 1.0;
+        var rotQuat = quat.create();
+        quat.rotateX(rotQuat, rotQuat, baseOri.x);
+        quat.rotateY(rotQuat, rotQuat, baseOri.y);
+        quat.rotateZ(rotQuat, rotQuat, baseOri.z);
+        var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
+        var mat = mat4.create();
+        mat4.fromRotationTranslation(mat, rotQuat, transVec);
+        
+        var glyphPromises = [];
+        var xOffset = 0;
+        for (var i=0; i<textStr.length; i++) {
+            var glyph;
+            var meshPath = scene.fontGlyphUrlFormat.replace('@@', textStr.charCodeAt(i));/* */
+            glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
+        }
+        Promise.all(glyphPromises).then(function (meshes) {
+            for (var i=0; i<meshes.length; i++) {
+                var mesh = meshes[i];
+                var meshInfo = FCMeshTools.analyseMesh(mesh);
+                glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
+                            {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
+                glyph.inheritedMatrix = mat;
+                scene.addObject(glyph);
+                xOffset += meshInfo.maxX*1.2*scale;
+            
+            }
+        });
+    }
     
     Scene.prototype.grabCurrentObject = function (gamepadIdx) {
         var scene = this;
