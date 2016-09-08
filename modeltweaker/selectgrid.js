@@ -27,7 +27,7 @@ var SelectGrid = function (params) {
         start:0, length: 32, end:32
     }
     this.selectedIdx = 0;
-    this.selectCaret = {row:1,column:1};
+    this.selectCaret = {row:0,column:0};
     this.dataItems = []
     this.gridItems = [];
     this.specialSelection = null;
@@ -85,6 +85,31 @@ SelectGrid.prototype.getDataForSelection = function () {
     if (this.specialSelection) return null;
     var gridIdx = this.getSelectedIndex();
     return this.dataItems[this.currentRange.start + gridIdx];
+}
+
+SelectGrid.prototype.getItemForGridIndex = function (gridIdx) {
+    // var disp, dat, isSpecial=false;
+    // if (this.specialSelection) {
+    //     isSpecial = true;
+    //     disp = this.specialItems[this.specialSelection];
+    // }
+    // else {
+    //     dat = this.dataItems[this.currentRange.start + gridIdx];
+    //     disp = this.gridItems[gridIdx];
+    // }
+    return {
+        data: this.dataItems[this.currentRange.start + gridIdx],
+        display: this.gridItems[gridIdx]
+    };
+}
+
+SelectGrid.prototype.getSelectedItem = function () {
+    if (this.specialSelection) return {
+        data: null,
+        display: this.specialItems[this.specialSelection],
+        isSpecial: true
+    }
+    else return this.getItemForGridIndex(this.getSelectedIndex());
 }
 
 SelectGrid.prototype.getDataIndexForGridIndex = function (gridIdx) {

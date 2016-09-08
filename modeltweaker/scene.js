@@ -13,7 +13,33 @@
 
 var DEG=360/(2*Math.PI);
 
+/* An ObjContainer is a simple thing for managing a set of objects. */
+/* How do we want to use this? consider it fundamental to the construction? or add things to it after */
+/* Mainly want to use it for behaviours and interactions but ... mandate may expand */
+var ObjContainer = function (children, scene, params) {
+    this.children = children;
+    this.scene = scene;
+}
 
+ObjContainer.prototype.distribute = function (fn) {
+    for (var i=0; i<this.children.length; i++) {
+        fn(this.children[i]);
+    }
+}
+
+ObjContainer.prototype.interact = function (type, params) {
+    if (type == 'select') {
+        this.distribute(function (d) {d.textureLabel='cyan';});
+    }
+    else if (type == 'deselect') {
+        this.distribute(function (d) {d.textureLabel='white';});
+    }
+    else if (type == 'activate') {
+        console.log(params.data);
+        this.scene.showFolder(params.data.path);
+    }
+        
+}
 
 window.ExperimentalScene = (function () {
     "use strict";
@@ -21,7 +47,7 @@ window.ExperimentalScene = (function () {
     function Scene() {
         /* Declare any class and instance vars unique to this scene, here. */
         FCScene.call(this);
-        this.meshes = {};
+        // this.meshes = {};
         
         this.modelList = null;
                 
@@ -55,9 +81,13 @@ window.ExperimentalScene = (function () {
                 position: {x:0, y:1.5, z:1.5},
                 orientation: {x:0, y:0, z:0}
             },
-            cam1: {
+            cam1z: {
                 position: {x:0, y:1.5, z:4.5},
                 orientation: {x:0, y:0, z:0}
+            },
+            cam1: {
+                position: {x:0, y:1.5, z:0},
+                orientation: {x:0.5, y:Math.PI, z:0}
             }
         }
         
@@ -200,6 +230,7 @@ window.ExperimentalScene = (function () {
         
         this.previewGrid = null;
         this.folderGrid = null;
+        this.activeGrid = null;
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -239,31 +270,256 @@ window.ExperimentalScene = (function () {
         }
     }
     
-    Scene.prototype.showFolderGrid = function () {
+    /* Grids will be constructed once each and then re-used for different content */
+    Scene.prototype.buildPreviewGrid = function (X) {
+        var scene = this;
+        var layout = scene.uiLayout;
+        var prevIdx = 0;
+        
+        
+        scene.previewGrid = new SelectGrid(
+            // {rowHeight: 0.6, perRow: 8, offset:{z:1.3*scene.stageParams.sizeZ}}
+            {rowHeight: layout.grid.rowHeight, perRow: layout.grid.columns,
+                rows: layout.grid.rows, columns: layout.grid.columns, 
+                ellipseScale: layout.grid.ellipseScale,
+             offset:{z:layout.grid.offsetZ(scene.stageParams)}}
+        );
+        
+        var arrowSize = {height: 0.1, scale:0.2};
+        var arrowParams = {
+            shaderLabel:'diffuse', texture:scene.textures.white, 
+            groupLabel:'uiChrome', 
+            shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse(),
+            samplerType: 'BeveledExtrudeSampler'
+        };
+        var arrowSelect = function (drawable, p) {
+            drawable.texture = scene.textures.cyan;
+        };
+        var arrowDeselect = function (drawable, p) {
+            drawable.texture = scene.textures.white;
+        };
+        var mkArrowActivate = function (rel) {
+            var arrowActivate = function (drawable, p) {
+                scene.previewGrid.changePage(rel);
+                scene.setupPreviews(null);
+            };
+            return arrowActivate;
+        };
+        
+        var arrowDisp = scene.uiLayout.arrowDisposition(scene.stageParams);
+        
+        var arrowLeft = new FCShapes.LatheExtruderShape(
+            arrowDisp.L.pos, arrowSize, arrowDisp.L.ori, 
+            arrowParams
+        );
+        arrowLeft.interactions['select'] = arrowSelect;
+        arrowLeft.interactions['deselect'] = arrowDeselect;
+        arrowLeft.interactions['activate'] = mkArrowActivate(-1);
+        scene.previewGrid.specialItems.PAGE_LEFT = arrowLeft;
+
+        var arrowRight = new FCShapes.LatheExtruderShape(
+            arrowDisp.R.pos, arrowSize, arrowDisp.R.ori, 
+            arrowParams
+        );
+        arrowRight.interactions['select'] = arrowSelect;
+        arrowRight.interactions['deselect'] = arrowDeselect;
+        arrowRight.interactions['activate'] = mkArrowActivate(1);
+        scene.previewGrid.specialItems.PAGE_RIGHT = arrowRight;
+
+        scene.addObject(arrowLeft);
+        scene.addObject(arrowRight);
+            
+        //////
+        // scene.previewGrid.setData(scene.modelList.files);
+        
+    }
+    
+    Scene.prototype.buildFolderGrid = function (X) {
         var scene = this;
         var layout = scene.uiLayout;
         /* Configure grid */
         var grid = new SelectGrid({
-            rowHeight: 0.4, perRow: 1,
+            rowHeight: 0.25, perRow: 1,
             rows: 10, columns: 1, 
             offset: {z:layout.grid.offsetZ(scene.stageParams), y:0.3}
         });
-        grid.setData(scene.modelList.folders);
         scene.folderGrid = grid;
         
+    }
+    
+    Scene.prototype.updatePreviews = function (rangeStart, rangeLength) {
+        var scene = this;
+        var grid = scene.previewGrid;
+        var layout = scene.uiLayout;
+        /* If rangeStart is null, the grid was configured elsewhere */
+        if (rangeStart != null) {
+            grid.setRange(rangeStart, rangeLength);
+        }
+        
+        /* TODO remove items from scene.previews when changing */
+        /* TODO consider caching preview meshes */
+        var currentPreviews = scene.getObjectsInGroup('previews');
+        for (var i=0; i<currentPreviews.length; i++) {
+            scene.removeObject(currentPreviews[i], true);
+        }
+        
+        // console.log(grid.currentRange);
+        // var myItems = scene.modelList.files.slice(grid.currentRange.start, grid.currentRange.end);
+        var myItems = grid.getDataForCurrentRange();
+        // for (var i=grid.currentRange.start || 0; i<grid.currentRange.end; i++) {
+        // for (var i=0; i<16; i++) {
+        for (var i=0; i<myItems.length; i++) {
+            var myInf = myItems[i];
+            // if (myInf.previews) {
+                var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
+                var modelName = myInf.name;
+                // console.log(modelName);
+                var nowt = function (previuUrl, modelInf, modelIdx) {
+                    FCShapeUtils.loadMesh(previuUrl)
+                    .then(function (mesh) {
+                        // var inf = FCMeshTools.analyseMesh(mesh);
+                        // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate); //<<< it would be better to do this in Blender!
+                        // var placement = grid.nextPlacement();
+                        var placement = grid.getPlacementForGridPosition(modelIdx);
+                        // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
+                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:layout.grid.previewScale}, placement.orientation,
+                            {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
+                        );
+                        newPrev.metadata.name = modelInf.name;
+                        newPrev.metadata.gridIdx = modelIdx;
+                        newPrev.metadata.dataIdx = grid.getDataIndexForGridIndex(modelIdx);
+                        newPrev.interactions['select'] = function (drawable, p) {
+                            drawable.textureLabel = 'cyan';
+                            // console.log(grid.getDataForSelection());
+                            var inf = grid.getDataForSelection();
+                            scene.showMessage([inf.name, Math.round(inf.size/100000)/10+' mb']);
+                            
+                            drawable.behaviours.push(function (dr, timePoint) {
+                                dr.orientation = {x:0,y:Math.PI*(timePoint/1700), z:0};
+                            });
+                        }
+                        newPrev.interactions['deselect'] = function (drawable, p) {
+                            drawable.textureLabel = 'white';
+                            drawable.behaviours = [];
+                        }
+                        newPrev.interactions['activate'] = function (drawable, p) {
+                            scene.showItemWithIndex(drawable.metadata.dataIdx, mesh);
+                        }
+                        scene.addObject(newPrev);
+                        // console.log(modelInf.name);
+                        // scene.previews.push({model:newPrev, name:modelInf.name});
+                        scene.previews.push(newPrev);//??
+                        grid.gridItems[modelIdx]=newPrev;
+                        // console.log(grid.items);
+                    });
+                    
+                }(previewUrl, myInf, i);
+            // }
+        }
+        // scene.activeGrid = grid;
+        
+    }
+    
+    Scene.prototype.updateFolders = function (rangeStart, rangeEnd) {
+        var scene = this;
+        var grid = scene.folderGrid;
+        grid.setRange(rangeStart, rangeEnd);
+        
+        /* Remove existing */
+        /* TODO I'm not really happy with this, I'd like to remove the containers rather than the individual glyphs */
+        var glyphs = scene.getObjectsInGroup('folderlist');
+        for (var i=0; i<glyphs.length; i++) {
+            scene.removeObject(glyphs[i]);
+        }
+        
+        var myFolders = grid.getDataForCurrentRange();
+        for (var i=0; i<myFolders.length; i++) {
+            var myFolder = myFolders[i];
+            var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
+            console.log(myInf);
+            // var textCluster;
+            var exec = function (inf, idx) {
+                scene.addText(
+                    inf.folder.label, inf.placement.location, 
+                    {x:90/DEG, y:0, z:180/DEG}, 
+                    {groupLabel:'folderlist', scale: 0.4}
+                )
+                .then(function (cluster) {
+                    // textCluster = cluster;
+                    grid.gridItems[idx] = cluster;
+                })
+            }(myInf, i);
+            
+        }
+        
+    }
+    
+    Scene.prototype.showFolder = function (folder) {
+        console.log('Showing', folder);
+        var scene = this;
+        /* Grid construction - NB this will be done in scene setup */
+        if (!scene.previewGrid) scene.buildPreviewGrid();
+        if (!scene.folderGrid) scene.buildFolderGrid();
+        
+        /* Remove previous grids */
+        /* Load the folder info via XHR */
+        /* Show the title of this folder */
+        /* Show the list of folders available from here in the folderGrid */
+        /* Show the items in this folder in the previewGrid */
+        var scene = this;
+        scene.loadModelList(folder)
+        .then(function (remoteInf) {
+            scene.previewGrid.setData(remoteInf.files);
+            scene.updatePreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
+            
+            // scene.showFolderGrid(remoteInf.folders);
+            var dests = [];
+            console.log(remoteInf);
+            if (remoteInf.parent) {
+                dests.push(remoteInf.parent);
+            }
+            scene.folderGrid.setData(dests.concat(remoteInf.folders));
+            scene.updateFolders(0, 10);
+            
+            scene.activeGrid = scene.previewGrid;
+            
+            // scene.showPreviews(remoteInf.files);
+        })
+    }
+    
+    Scene.prototype.showFolderGrid = function (folders) {
+        var scene = this;
+        var layout = scene.uiLayout;
+        /* Configure grid */
+        var grid = new SelectGrid({
+            rowHeight: 0.25, perRow: 1,
+            rows: 10, columns: 1, 
+            offset: {z:layout.grid.offsetZ(scene.stageParams), y:0.3}
+        });
+        scene.folderGrid = grid;
+        
+        grid.setData(folders);
         grid.setRange(0,10);
         var myFolders = grid.getDataForCurrentRange();
         for (var i=0; i<myFolders.length; i++) {
             var myFolder = myFolders[i];
             var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
             console.log(myInf);
-            scene.addText(
-                myInf.folder.label, myInf.placement.location, 
-                {x:90/DEG, y:0, z:180/DEG}, 
-                {groupLabel:'folderlist', scale: 0.6}
-            );
+            // var textCluster;
+            var exec = function (inf, idx) {
+                scene.addText(
+                    inf.folder.label, inf.placement.location, 
+                    {x:90/DEG, y:0, z:180/DEG}, 
+                    {groupLabel:'folderlist', scale: 0.4}
+                )
+                .then(function (cluster) {
+                    // textCluster = cluster;
+                    grid.gridItems[idx] = cluster;
+                })
+            }(myInf, i);
             
         }
+        scene.activeGrid = grid;
         
     }
     
@@ -367,7 +623,7 @@ window.ExperimentalScene = (function () {
                         newPrev.metadata.dataIdx = grid.getDataIndexForGridIndex(modelIdx);
                         newPrev.interactions['select'] = function (drawable, p) {
                             drawable.textureLabel = 'cyan';
-                            console.log(grid.getDataForSelection());
+                            // console.log(grid.getDataForSelection());
                             var inf = grid.getDataForSelection();
                             scene.showMessage([inf.name, Math.round(inf.size/100000)/10+' mb']);
                             
@@ -385,7 +641,7 @@ window.ExperimentalScene = (function () {
                         scene.addObject(newPrev);
                         // console.log(modelInf.name);
                         // scene.previews.push({model:newPrev, name:modelInf.name});
-                        scene.previews.push(newPrev);
+                        scene.previews.push(newPrev);//??
                         grid.gridItems[modelIdx]=newPrev;
                         // console.log(grid.items);
                     });
@@ -393,6 +649,7 @@ window.ExperimentalScene = (function () {
                 }(previewUrl, myInf, i);
             // }
         }
+        scene.activeGrid = grid;
     }
     
     Scene.prototype.showItemWithIndex = function (idx, previewMesh) {
@@ -439,9 +696,9 @@ window.ExperimentalScene = (function () {
         });
     }
     
-    Scene.prototype.loadModelList = function () {
+    Scene.prototype.loadModelList = function (path) {
         var scene = this;
-        var listUrl = scene.modelListUrlFormat.replace('@@', scene.modelFolder);
+        var listUrl = scene.modelListUrlFormat.replace('@@', path);
         return new Promise(function (resolve, reject) {
             var xh = new XMLHttpRequest();
             xh.open('GET', listUrl, true);
@@ -450,7 +707,7 @@ window.ExperimentalScene = (function () {
                 if (xh.readyState == 4) {
                     console.log(xh.response);
                     scene.modelList = xh.response;
-                    resolve();
+                    resolve(xh.response);
                 }
             }
             xh.send();
@@ -548,13 +805,13 @@ window.ExperimentalScene = (function () {
         
     Scene.prototype.interactWithSelection = function (interaction, params) {
         var scene = this;
-        // var idx = scene.previewGrid.getSelectedIndex();
-        var obj = scene.previewGrid.getGridItemForSelection();
-        // if (idx == null) {
-        //
-        // }
-        // var obj = scene.previews[idx];
-        obj.interact(interaction, params);
+        // var obj = scene.activeGrid.getGridItemForSelection();
+        // obj.interact(interaction, params);
+        
+        var item = scene.activeGrid.getSelectedItem();
+        item.display.interact(interaction, {data:item.data});
+        
+        
     }
     
     Scene.prototype.handleButton_MODE_PREVIEW_SELECT = function (btnIdx, btnStatus, sector, myButton, extra) {
@@ -562,12 +819,24 @@ window.ExperimentalScene = (function () {
         if (btnIdx == 0 && btnStatus == 'pressed') {
             var selDir = (sector == 'w' && 'LEFT' || sector == 'e' && 'RIGHT' || 
                         sector == 'n' && 'UP' || sector == 's' && 'DOWN' || null);
-            if (selDir) scene.previewGrid.moveSelectCaret(selDir);
+            if (selDir) scene.activeGrid.moveSelectCaret(selDir);
         }
         else if (btnIdx == 1 && btnStatus == 'pressed') {
             scene.interactWithSelection('activate');
         }
     }
+
+    // Scene.prototype.handleButton_MODE_PREVIEW_SELECT = function (btnIdx, btnStatus, sector, myButton, extra) {
+    //     var scene = this;
+    //     if (btnIdx == 0 && btnStatus == 'pressed') {
+    //         var selDir = (sector == 'w' && 'LEFT' || sector == 'e' && 'RIGHT' ||
+    //                     sector == 'n' && 'UP' || sector == 's' && 'DOWN' || null);
+    //         if (selDir) scene.activeGrid.moveSelectCaret(selDir);
+    //     }
+    //     else if (btnIdx == 1 && btnStatus == 'pressed') {
+    //         scene.interactWithSelection('activate');
+    //     }
+    // }
     
     Scene.prototype.handleButton_MODE_OBJ_ROT_SCALE = function (btnIdx, btnStatus, sector, myButton, extra) {
         var scene = this;
@@ -816,11 +1085,13 @@ window.ExperimentalScene = (function () {
         scene.addObject(ctrl1);
         
         
-        scene.loadModelList()
-        .then(function () {
-            if (scene.autoLoadIdx) scene.loadModelAtIndex(scene.autoLoadIdx);
-            scene.setupPreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
-        });
+        // scene.loadModelList(scene.modelFolder)
+        // .then(function () {
+        //     if (scene.autoLoadIdx) scene.loadModelAtIndex(scene.autoLoadIdx);
+        //     scene.setupPreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
+        // });
+        
+        scene.showFolder(scene.modelFolder);
         
         // scene.showStatusIndicator(scene.textures.white);
         scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTexLabel])
@@ -831,42 +1102,51 @@ window.ExperimentalScene = (function () {
         // gl.uniform3fv(ads.uniform['lights[1].Ambient'], [1,1,1]);
         
         
-        var showText = function (textStr, basePos, baseOri, params) {
-            var p = params || {};
-            var groupLabel = p.groupLabel || 'letters';
-            var materialLabel = p.materialLabel || 'matteplastic';
-            var textureLabel = p.textureLabel || null;
-            var scale = p.scale || 1.0;
-            var rotQuat = quat.create();
-            quat.rotateX(rotQuat, rotQuat, baseOri.x);
-            quat.rotateY(rotQuat, rotQuat, baseOri.y);
-            quat.rotateZ(rotQuat, rotQuat, baseOri.z);
-            var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
-            var mat = mat4.create();
-            mat4.fromRotationTranslation(mat, rotQuat, transVec);
-            
-            var glyphPromises = [];
-            var xOffset = 0;
-            for (var i=0; i<textStr.length; i++) {
-                var glyph;
-                var meshPath = scene.fontGlyphUrlFormat.replace('@@', textStr.charCodeAt(i));/* */
-                glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
-            }
-            Promise.all(glyphPromises).then(function (meshes) {
-                for (var i=0; i<meshes.length; i++) {
-                    var mesh = meshes[i];
-                    var meshInfo = FCMeshTools.analyseMesh(mesh);
-                    glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
-                                {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
-                    glyph.inheritedMatrix = mat;
-                    scene.addObject(glyph);
-                    xOffset += meshInfo.maxX*1.2*scale;
-                
-                }
-            });
-        }
+        // var showText = function (textStr, basePos, baseOri, params) {
+        //     var p = params || {};
+        //     var groupLabel = p.groupLabel || 'letters';
+        //     var materialLabel = p.materialLabel || 'matteplastic';
+        //     var textureLabel = p.textureLabel || null;
+        //     var scale = p.scale || 1.0;
+        //     var rotQuat = quat.create();
+        //     quat.rotateX(rotQuat, rotQuat, baseOri.x);
+        //     quat.rotateY(rotQuat, rotQuat, baseOri.y);
+        //     quat.rotateZ(rotQuat, rotQuat, baseOri.z);
+        //     var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
+        //     var mat = mat4.create();
+        //     mat4.fromRotationTranslation(mat, rotQuat, transVec);
+        //
+        //     var glyphPromises = [];
+        //     var xOffset = 0;
+        //     for (var i=0; i<textStr.length; i++) {
+        //         var glyph;
+        //         var chrCode = textStr.charCodeAt(i);
+        //         if (chrCode == 32) {
+        //             glyphPromises.push(new Promise(function (resolve, reject) {resolve(null)}));
+        //             continue;
+        //         }
+        //         var meshPath = scene.fontGlyphUrlFormat.replace('@@', chrCode);/* */
+        //         glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
+        //     }
+        //     Promise.all(glyphPromises).then(function (meshes) {
+        //         for (var i=0; i<meshes.length; i++) {
+        //             var mesh = meshes[i];
+        //             if (mesh === null) {
+        //                 xOffset += 0.1*scale;
+        //                 continue;
+        //             }
+        //             var meshInfo = FCMeshTools.analyseMesh(mesh);
+        //             glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
+        //                         {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
+        //             glyph.inheritedMatrix = mat;
+        //             scene.addObject(glyph);
+        //             xOffset += meshInfo.maxX*1.2*scale;
+        //
+        //         }
+        //     });
+        // }
         
-        scene.addText(scene.modelFolder, {x:1.3, y:3.0, z:0.5+scene.uiLayout.grid.offsetZ(scene.stageParams)}, {x:90/DEG, y:0, z:180/DEG}, {scale:0.5, textureLabel:'royalblue'});
+        // scene.addText(scene.modelFolder, {x:1.3, y:3.0, z:0.5+scene.uiLayout.grid.offsetZ(scene.stageParams)}, {x:90/DEG, y:0, z:180/DEG}, {scale:0.5, textureLabel:'royalblue'});
         
     }
     
@@ -885,25 +1165,44 @@ window.ExperimentalScene = (function () {
         var mat = mat4.create();
         mat4.fromRotationTranslation(mat, rotQuat, transVec);
         
-        var glyphPromises = [];
-        var xOffset = 0;
-        for (var i=0; i<textStr.length; i++) {
-            var glyph;
-            var meshPath = scene.fontGlyphUrlFormat.replace('@@', textStr.charCodeAt(i));/* */
-            glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
-        }
-        Promise.all(glyphPromises).then(function (meshes) {
-            for (var i=0; i<meshes.length; i++) {
-                var mesh = meshes[i];
-                var meshInfo = FCMeshTools.analyseMesh(mesh);
-                glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
-                            {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
-                glyph.inheritedMatrix = mat;
-                scene.addObject(glyph);
-                xOffset += meshInfo.maxX*1.2*scale;
-            
+        return new Promise(function (resolve, reject) {
+            var glyphPromises = [];
+            var xOffset = 0;
+            for (var i=0; i<textStr.length; i++) {
+                var glyph;
+                /* If it's a space, make an empty promise and then catch that on the other side */
+                var chrCode = textStr.charCodeAt(i);
+                if (chrCode == 32) {
+                    glyphPromises.push(new Promise(function (resolve, reject) {resolve(null)}));
+                    continue;
+                }
+                
+                var meshPath = scene.fontGlyphUrlFormat.replace('@@', chrCode);/* */
+                glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
             }
-        });
+            Promise.all(glyphPromises).then(function (meshes) {
+                var glyphobjs = [];
+                for (var i=0; i<meshes.length; i++) {
+                    var mesh = meshes[i];
+                    
+                    if (mesh === null) {
+                        xOffset += 0.35*scale;
+                        continue;
+                    }
+                    
+                    var meshInfo = FCMeshTools.analyseMesh(mesh);
+                    glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
+                                {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
+                    glyph.inheritedMatrix = mat;
+                    scene.addObject(glyph);
+                    glyphobjs.push(glyph);
+                    xOffset += meshInfo.maxX*1.2*scale;
+            
+                }
+                resolve(new ObjContainer(glyphobjs, scene));
+            });
+            
+        })
     }
     
     Scene.prototype.grabCurrentObject = function (gamepadIdx) {
