@@ -1,4 +1,4 @@
-/* Wishlist: */
+/*_ Wishlist _*/
 /*
     - loading indicator
     - folders
@@ -13,6 +13,7 @@
 
 var DEG=360/(2*Math.PI);
 
+/*__*/
 /* An ObjContainer is a simple thing for managing a set of objects. */
 /* How do we want to use this? consider it fundamental to the construction? or add things to it after */
 /* Mainly want to use it for behaviours and interactions but ... mandate may expand */
@@ -41,10 +42,13 @@ ObjContainer.prototype.interact = function (type, params) {
         
 }
 
+/*__*/
+
+
 window.ExperimentalScene = (function () {
     "use strict";
     
-    function Scene() {
+    var Scene = function() {
         /* Declare any class and instance vars unique to this scene, here. */
         FCScene.call(this);
         // this.meshes = {};
@@ -114,8 +118,31 @@ window.ExperimentalScene = (function () {
             meshes: [
                {label: 'controller', src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj'}
             ],
-            textureColors: [
-                
+            colors: [
+                {hex: '#00007f', label: 'navy'},
+                {hex: '#0000ff', label: 'blue'},
+                {hex: '#007f00', label: 'green'},
+                {hex: '#007f7f', label: 'teal'},
+                {hex: '#00ff00', label: 'lime'},
+                {hex: '#00ff7f', label: 'springgreen'},
+                {hex: '#00ffff', label: 'cyan'},
+                {hex: '#00ffff', label: 'aqua'},
+                {hex: '#191970', label: 'dodgerblue'},
+                {hex: '#20b2aa', label: 'lightseagreen'},
+                {hex: '#228b22', label: 'forestgreen'},
+                {hex: '#2e8b57', label: 'seagreen'},
+                {hex: '#4169e1', label: 'royalblue'},
+                {hex: '#ff0000', label: 'red'},
+                {hex: '#ff00ff', label: 'magenta'},
+                {hex: '#ffa500', label: 'orange'},
+                {hex: '#ffff00', label: 'yellow'},
+                {hex: '#ffe0bd', label: 'skin_1'},
+                {hex: '#ffcd94', label: 'skin_2'},
+                {hex: '#eac086', label: 'skin_3'},
+                {hex: '#ffad60', label: 'skin_4'},
+                {hex: '#000000', label: 'black'},
+                {hex: '#888888', label: 'gray'},
+                {hex: '#ffffff', label: 'white'}
             ],
             textures: [
                 {label: 'concrete01', src: '//assets.meta4vr.net/texture/concrete01.jpg'}
@@ -235,41 +262,6 @@ window.ExperimentalScene = (function () {
     
     Scene.prototype = Object.create(FCScene.prototype);
     
-    /* If idx is not set, increment */
-    Scene.prototype.setUIMode = function (idx) {
-        var scene = this;
-        if (idx === null || idx === undefined) {
-            scene.uiMode = ++scene.uiMode%scene.uiModes.length;
-        }
-        else {
-            scene.uiMode = 0;
-        }
-        var modeInf = scene.uiModes[scene.uiMode];
-        scene.showStatusIndicator(scene.textures[modeInf.statusTexLabel]);
-        
-    }
-    
-    Scene.prototype.showFolders = function () {
-        var scene = this;
-        var foldersList = scene.modelList.folders || [];
-        for (var i=0; i<foldersList.length; i++) {
-            var myFolder = foldersList[i];
-            var boardLoc = {x:0, y:0, z:-3};
-            var boardOri = {x:0, y:Math.PI, z:0};
-            FCUtils.createTextBoard(myFolder.label, boardLoc, null, boardOri, {
-                canvasColor: 'white',
-                textColor: 'black',
-                fontSize: '40',
-                font: 'arial',
-                groupLabel: 'folderBoards'
-            })
-            .then(function (newBoard) {
-                /* Set up colliders */
-                /* Add to scene */
-            })
-        }
-    }
-    
     /* Grids will be constructed once each and then re-used for different content */
     Scene.prototype.buildPreviewGrid = function (X) {
         var scene = this;
@@ -301,7 +293,7 @@ window.ExperimentalScene = (function () {
         var mkArrowActivate = function (rel) {
             var arrowActivate = function (drawable, p) {
                 scene.previewGrid.changePage(rel);
-                scene.setupPreviews(null);
+                scene.updatePreviews(null);
             };
             return arrowActivate;
         };
@@ -363,25 +355,15 @@ window.ExperimentalScene = (function () {
             scene.removeObject(currentPreviews[i], true);
         }
         
-        // console.log(grid.currentRange);
-        // var myItems = scene.modelList.files.slice(grid.currentRange.start, grid.currentRange.end);
         var myItems = grid.getDataForCurrentRange();
-        // for (var i=grid.currentRange.start || 0; i<grid.currentRange.end; i++) {
-        // for (var i=0; i<16; i++) {
         for (var i=0; i<myItems.length; i++) {
             var myInf = myItems[i];
-            // if (myInf.previews) {
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
                 var modelName = myInf.name;
-                // console.log(modelName);
                 var nowt = function (previuUrl, modelInf, modelIdx) {
                     FCShapeUtils.loadMesh(previuUrl)
                     .then(function (mesh) {
-                        // var inf = FCMeshTools.analyseMesh(mesh);
-                        // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate); //<<< it would be better to do this in Blender!
-                        // var placement = grid.nextPlacement();
                         var placement = grid.getPlacementForGridPosition(modelIdx);
-                        // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
                         var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:layout.grid.previewScale}, placement.orientation,
                             {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
                         );
@@ -390,7 +372,6 @@ window.ExperimentalScene = (function () {
                         newPrev.metadata.dataIdx = grid.getDataIndexForGridIndex(modelIdx);
                         newPrev.interactions['select'] = function (drawable, p) {
                             drawable.textureLabel = 'cyan';
-                            // console.log(grid.getDataForSelection());
                             var inf = grid.getDataForSelection();
                             scene.showMessage([inf.name, Math.round(inf.size/100000)/10+' mb']);
                             
@@ -406,11 +387,8 @@ window.ExperimentalScene = (function () {
                             scene.showItemWithIndex(drawable.metadata.dataIdx, mesh);
                         }
                         scene.addObject(newPrev);
-                        // console.log(modelInf.name);
-                        // scene.previews.push({model:newPrev, name:modelInf.name});
                         scene.previews.push(newPrev);//??
                         grid.gridItems[modelIdx]=newPrev;
-                        // console.log(grid.items);
                     });
                     
                 }(previewUrl, myInf, i);
@@ -487,171 +465,6 @@ window.ExperimentalScene = (function () {
         })
     }
     
-    Scene.prototype.showFolderGrid = function (folders) {
-        var scene = this;
-        var layout = scene.uiLayout;
-        /* Configure grid */
-        var grid = new SelectGrid({
-            rowHeight: 0.25, perRow: 1,
-            rows: 10, columns: 1, 
-            offset: {z:layout.grid.offsetZ(scene.stageParams), y:0.3}
-        });
-        scene.folderGrid = grid;
-        
-        grid.setData(folders);
-        grid.setRange(0,10);
-        var myFolders = grid.getDataForCurrentRange();
-        for (var i=0; i<myFolders.length; i++) {
-            var myFolder = myFolders[i];
-            var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
-            console.log(myInf);
-            // var textCluster;
-            var exec = function (inf, idx) {
-                scene.addText(
-                    inf.folder.label, inf.placement.location, 
-                    {x:90/DEG, y:0, z:180/DEG}, 
-                    {groupLabel:'folderlist', scale: 0.4}
-                )
-                .then(function (cluster) {
-                    // textCluster = cluster;
-                    grid.gridItems[idx] = cluster;
-                })
-            }(myInf, i);
-            
-        }
-        scene.activeGrid = grid;
-        
-    }
-    
-    /* From meshes which are kind enough to be previewable, show the previews */
-    Scene.prototype.setupPreviews = function (rangeStart, rangeLength) {
-        var scene = this;
-        var layout = scene.uiLayout;
-        var prevIdx = 0;
-        if (!scene.previewGrid) {
-            scene.previewGrid = new SelectGrid(
-                // {rowHeight: 0.6, perRow: 8, offset:{z:1.3*scene.stageParams.sizeZ}}
-                {rowHeight: layout.grid.rowHeight, perRow: layout.grid.columns,
-                    rows: layout.grid.rows, columns: layout.grid.columns, 
-                    ellipseScale: layout.grid.ellipseScale,
-                 offset:{z:layout.grid.offsetZ(scene.stageParams)}}
-            );
-            scene.previewGrid.setData(scene.modelList.files);
-            
-            var arrowSize = {height: 0.1, scale:0.2};
-            var arrowParams = {
-                shaderLabel:'diffuse', texture:scene.textures.white, 
-                groupLabel:'uiChrome', 
-                shapePoints: [[-1,0.55], [0,0.55], [0,1], [1,0], [0,-1], [0,-0.55], [-1,-0.55]].reverse(),
-                samplerType: 'BeveledExtrudeSampler'
-            };
-            var arrowSelect = function (drawable, p) {
-                drawable.texture = scene.textures.cyan;
-            };
-            var arrowDeselect = function (drawable, p) {
-                drawable.texture = scene.textures.white;
-            };
-            var mkArrowActivate = function (rel) {
-                var arrowActivate = function (drawable, p) {
-                    scene.previewGrid.changePage(rel);
-                    scene.setupPreviews(null);
-                };
-                return arrowActivate;
-            };
-            
-            var arrowDisp = scene.uiLayout.arrowDisposition(scene.stageParams);
-            
-            var arrowLeft = new FCShapes.LatheExtruderShape(
-                arrowDisp.L.pos, arrowSize, arrowDisp.L.ori, 
-                arrowParams
-            );
-            arrowLeft.interactions['select'] = arrowSelect;
-            arrowLeft.interactions['deselect'] = arrowDeselect;
-            arrowLeft.interactions['activate'] = mkArrowActivate(-1);
-            scene.previewGrid.specialItems.PAGE_LEFT = arrowLeft;
-
-            var arrowRight = new FCShapes.LatheExtruderShape(
-                arrowDisp.R.pos, arrowSize, arrowDisp.R.ori, 
-                arrowParams
-            );
-            arrowRight.interactions['select'] = arrowSelect;
-            arrowRight.interactions['deselect'] = arrowDeselect;
-            arrowRight.interactions['activate'] = mkArrowActivate(1);
-            scene.previewGrid.specialItems.PAGE_RIGHT = arrowRight;
-
-            scene.addObject(arrowLeft);
-            scene.addObject(arrowRight);
-            
-        }
-        var grid = scene.previewGrid;
-        /* If rangeStart is null, the grid was configured elsewhere */
-        if (rangeStart != null) {
-            grid.setRange(rangeStart, rangeLength);
-        }
-        
-        /* TODO remove items from scene.previews when changing */
-        /* TODO consider caching preview meshes */
-        var currentPreviews = scene.getObjectsInGroup('previews');
-        for (var i=0; i<currentPreviews.length; i++) {
-            scene.removeObject(currentPreviews[i], true);
-        }
-        
-        // console.log(grid.currentRange);
-        // var myItems = scene.modelList.files.slice(grid.currentRange.start, grid.currentRange.end);
-        var myItems = grid.getDataForCurrentRange();
-        // for (var i=grid.currentRange.start || 0; i<grid.currentRange.end; i++) {
-        // for (var i=0; i<16; i++) {
-        for (var i=0; i<myItems.length; i++) {
-            var myInf = myItems[i];
-            // if (myInf.previews) {
-                var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
-                var modelName = myInf.name;
-                // console.log(modelName);
-                var nowt = function (previuUrl, modelInf, modelIdx) {
-                    FCShapeUtils.loadMesh(previuUrl)
-                    .then(function (mesh) {
-                        // var inf = FCMeshTools.analyseMesh(mesh);
-                        // FCMeshTools.shuntMesh(mesh, inf.suggestedTranslate); //<<< it would be better to do this in Blender!
-                        // var placement = grid.nextPlacement();
-                        var placement = grid.getPlacementForGridPosition(modelIdx);
-                        // var newPrev = new FCShapes.MeshShape(mesh, {x:3+(0.7*prevIdx++), y:0, z:0}, {scale: inf.suggestedScale*0.4}, null, {shaderLabel:'diffuse', textureLabel:'white', groupLabel:'previews'});
-                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:layout.grid.previewScale}, placement.orientation,
-                            {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
-                        );
-                        newPrev.metadata.name = modelInf.name;
-                        newPrev.metadata.gridIdx = modelIdx;
-                        newPrev.metadata.dataIdx = grid.getDataIndexForGridIndex(modelIdx);
-                        newPrev.interactions['select'] = function (drawable, p) {
-                            drawable.textureLabel = 'cyan';
-                            // console.log(grid.getDataForSelection());
-                            var inf = grid.getDataForSelection();
-                            scene.showMessage([inf.name, Math.round(inf.size/100000)/10+' mb']);
-                            
-                            drawable.behaviours.push(function (dr, timePoint) {
-                                dr.orientation = {x:0,y:Math.PI*(timePoint/1700), z:0};
-                            });
-                        }
-                        newPrev.interactions['deselect'] = function (drawable, p) {
-                            drawable.textureLabel = 'white';
-                            drawable.behaviours = [];
-                        }
-                        newPrev.interactions['activate'] = function (drawable, p) {
-                            scene.showItemWithIndex(drawable.metadata.dataIdx, mesh);
-                        }
-                        scene.addObject(newPrev);
-                        // console.log(modelInf.name);
-                        // scene.previews.push({model:newPrev, name:modelInf.name});
-                        scene.previews.push(newPrev);//??
-                        grid.gridItems[modelIdx]=newPrev;
-                        // console.log(grid.items);
-                    });
-                    
-                }(previewUrl, myInf, i);
-            // }
-        }
-        scene.activeGrid = grid;
-    }
-    
     Scene.prototype.showItemWithIndex = function (idx, previewMesh) {
         var scene = this;
         var layout = scene.uiLayout;
@@ -715,6 +528,8 @@ window.ExperimentalScene = (function () {
         });
     }
     
+    /*_ Controller & low-level UIX _*/
+    
     Scene.prototype.showMenu = function () {
         
         
@@ -736,68 +551,20 @@ window.ExperimentalScene = (function () {
         scene.statusIndicator = si;
     }
     
-    Scene.prototype.showMessage = function (texts) {
+    /* If idx is not set, increment */
+    Scene.prototype.setUIMode = function (idx) {
         var scene = this;
-        var textBlocks = [];
-        for (var i=0; i<texts.length; i++) {
-            textBlocks.push({t:texts[i], color:'black', size:50});
+        if (idx === null || idx === undefined) {
+            scene.uiMode = ++scene.uiMode%scene.uiModes.length;
         }
-        FCUtil.makeTextBoard(scene, textBlocks, {x:2.5, y:1, z:0}, {y:1.5*Math.PI, x:0, z:0}, null, null, null, {canvasColor:'white'})
-        .then(function (newBoard) {
-            if (scene.displayBoard) {
-                scene.removeObject(scene.displayBoard);
-            }
-            scene.displayBoard = newBoard;
-            scene.addObject(newBoard);
-        })
-    }
-        
-    Scene.prototype.setupPrereqs = function () {
-        var scene = this;
-        var prereqPromises = [];
-        return new Promise(function (resolve, reject) {
-
-            /* Build solid colour textures */
-            var texColors = [
-                {hex: '#00007f', label: 'navy'},
-                {hex: '#0000ff', label: 'blue'},
-                {hex: '#007f00', label: 'green'},
-                {hex: '#007f7f', label: 'teal'},
-                {hex: '#00ff00', label: 'lime'},
-                {hex: '#00ff7f', label: 'springgreen'},
-                {hex: '#00ffff', label: 'cyan'},
-                {hex: '#00ffff', label: 'aqua'},
-                {hex: '#191970', label: 'dodgerblue'},
-                {hex: '#20b2aa', label: 'lightseagreen'},
-                {hex: '#228b22', label: 'forestgreen'},
-                {hex: '#2e8b57', label: 'seagreen'},
-                {hex: '#4169e1', label: 'royalblue'},
-                {hex: '#ff0000', label: 'red'},
-                {hex: '#ff00ff', label: 'magenta'},
-                {hex: '#ffa500', label: 'orange'},
-                {hex: '#ffff00', label: 'yellow'},
-                {hex: '#ffe0bd', label: 'skin_1'},
-                {hex: '#ffcd94', label: 'skin_2'},
-                {hex: '#eac086', label: 'skin_3'},
-                {hex: '#ffad60', label: 'skin_4'},
-                {hex: '#000000', label: 'black'},
-                {hex: '#888888', label: 'gray'},
-                {hex: '#ffffff', label: 'white'}
-            ];
-            for (var i=0; i<texColors.length; i++) {
-                var myTexColor = texColors[i];
-                scene.addTextureFromColor(myTexColor, myTexColor.label);
-            }
-                        
-            /* Wait for everything to finish and resolve() */
-            Promise.all(prereqPromises).then(function () {
-                resolve();
-            });
-            
-        })
+        else {
+            scene.uiMode = 0;
+        }
+        var modeInf = scene.uiModes[scene.uiMode];
+        scene.showStatusIndicator(scene.textures[modeInf.statusTexLabel]);
         
     }
-    
+        
     Scene.prototype.teleportUserToCursor = function () {
         var curs = this.getObjectByLabel('cursor');
         this.moveRaftAndPlayerTo(curs.pos);
@@ -805,9 +572,6 @@ window.ExperimentalScene = (function () {
         
     Scene.prototype.interactWithSelection = function (interaction, params) {
         var scene = this;
-        // var obj = scene.activeGrid.getGridItemForSelection();
-        // obj.interact(interaction, params);
-        
         var item = scene.activeGrid.getSelectedItem();
         item.display.interact(interaction, {data:item.data});
         
@@ -897,30 +661,7 @@ window.ExperimentalScene = (function () {
                         return;
                     }
                     switch (tpMode) {
-                    case 'MODE_PREVIEW_SELECT':
-                        if (btnStatus == 'released') {
-                            if (sector == 'e' || sector == 'w') {
-                                scene.previewUpdated(sector=='e' && 1 || sector=='w' && -1);
-                            }
-                            else if (sector == 'n') {
-                                scene.chooseCurrentPreview();
-                            }
-                        }
-                        break;
-                    case 'MODE_OBJ_ROT_SCALE':
-                        if (sector == 'n') {
-                            scene.currentObject.scaleFactor *= 1.005;
-                        }
-                        else if (sector == 's') {
-                            scene.currentObject.scaleFactor *= 0.995;
-                        }
-                        else if (sector == 'w') {
-                            scene.currentObject.orientation.y += 0.6/DEG;
-                        }
-                        else if (sector == 'e') {
-                            scene.currentObject.orientation.y -= 0.6/DEG;
-                        }
-                        break;
+                    /* redacted */
                     case 'MODE_OBJ_ROT_JERK':
                         if (sector == 'n' && btnStatus == 'released') {
                             scene.currentObject.orientation.x -= 15/DEG;
@@ -954,33 +695,13 @@ window.ExperimentalScene = (function () {
                     }
                     
                 }
-                
-                /* Trigger pressed. "Grab" or "release" the current object and allow it to be repositioned */
-                else if (btnIdx == '1') {
-                    
-                    if (btnStatus == 'pressed') {
-                        scene.grabCurrentObject(gamepadIdx);
-                    }
-                    else if (btnStatus == 'released') {
-                        scene.releaseCurrentObject();
-                    }
-                    
-                    
-                    
-                }
-                
-                
-                
-                if (btnIdx == '2' && btnStatus == 'pressed') {
-                    scene.teleportUserToCursor();
-                }
-                if (btnIdx == '3' && btnStatus == 'pressed') {
-                    scene.loadNextModel()
-                }
+                /* redacted */
             }
         };
         return buttonHandler;
     }
+    
+    /*_ Scene init _*/
     
     Scene.prototype.setupScene = function () {
         var scene = this;
@@ -1093,61 +814,32 @@ window.ExperimentalScene = (function () {
         
         scene.showFolder(scene.modelFolder);
         
+        
         // scene.showStatusIndicator(scene.textures.white);
         scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTexLabel])
         
-        // var gl = scene.gl;
-        // var ads = scene.shaders.ads;
-        // gl.uniform3fv(ads.uniform['material.Ambient'], [1,1,1]);
-        // gl.uniform3fv(ads.uniform['lights[1].Ambient'], [1,1,1]);
-        
-        
-        // var showText = function (textStr, basePos, baseOri, params) {
-        //     var p = params || {};
-        //     var groupLabel = p.groupLabel || 'letters';
-        //     var materialLabel = p.materialLabel || 'matteplastic';
-        //     var textureLabel = p.textureLabel || null;
-        //     var scale = p.scale || 1.0;
-        //     var rotQuat = quat.create();
-        //     quat.rotateX(rotQuat, rotQuat, baseOri.x);
-        //     quat.rotateY(rotQuat, rotQuat, baseOri.y);
-        //     quat.rotateZ(rotQuat, rotQuat, baseOri.z);
-        //     var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
-        //     var mat = mat4.create();
-        //     mat4.fromRotationTranslation(mat, rotQuat, transVec);
-        //
-        //     var glyphPromises = [];
-        //     var xOffset = 0;
-        //     for (var i=0; i<textStr.length; i++) {
-        //         var glyph;
-        //         var chrCode = textStr.charCodeAt(i);
-        //         if (chrCode == 32) {
-        //             glyphPromises.push(new Promise(function (resolve, reject) {resolve(null)}));
-        //             continue;
-        //         }
-        //         var meshPath = scene.fontGlyphUrlFormat.replace('@@', chrCode);/* */
-        //         glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
-        //     }
-        //     Promise.all(glyphPromises).then(function (meshes) {
-        //         for (var i=0; i<meshes.length; i++) {
-        //             var mesh = meshes[i];
-        //             if (mesh === null) {
-        //                 xOffset += 0.1*scale;
-        //                 continue;
-        //             }
-        //             var meshInfo = FCMeshTools.analyseMesh(mesh);
-        //             glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
-        //                         {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
-        //             glyph.inheritedMatrix = mat;
-        //             scene.addObject(glyph);
-        //             xOffset += meshInfo.maxX*1.2*scale;
-        //
-        //         }
-        //     });
-        // }
-        
-        // scene.addText(scene.modelFolder, {x:1.3, y:3.0, z:0.5+scene.uiLayout.grid.offsetZ(scene.stageParams)}, {x:90/DEG, y:0, z:180/DEG}, {scale:0.5, textureLabel:'royalblue'});
-        
+    }
+    
+    Scene.prototype.setupPrereqs = function () {
+        return new Promise(function (resolve, reject) {resolve();})
+    }
+    
+    /*_ Text handling stuff _*/
+    
+    Scene.prototype.showMessage = function (texts) {
+        var scene = this;
+        var textBlocks = [];
+        for (var i=0; i<texts.length; i++) {
+            textBlocks.push({t:texts[i], color:'black', size:50});
+        }
+        FCUtil.makeTextBoard(scene, textBlocks, {x:2.5, y:1, z:0}, {y:1.5*Math.PI, x:0, z:0}, null, null, null, {canvasColor:'white'})
+        .then(function (newBoard) {
+            if (scene.displayBoard) {
+                scene.removeObject(scene.displayBoard);
+            }
+            scene.displayBoard = newBoard;
+            scene.addObject(newBoard);
+        })
     }
     
     Scene.prototype.addText = function (textStr, basePos, baseOri, params) {
@@ -1205,146 +897,6 @@ window.ExperimentalScene = (function () {
         })
     }
     
-    Scene.prototype.grabCurrentObject = function (gamepadIdx) {
-        var scene = this;
-        /* The initial translation values here are applying the exact opposite of the hand position. */
-        /* When the behaviour is assigned, it will start updating the object's position directly to */
-        /* match that of the controller (ie. the player's hand location) so we need to pre-emptively */
-        /* cancel those out to keep the object's position from suddenly changing as it is grabbed. */
-        
-        /* orrrrr you could just set it to the origin? (relative to raft pos) */
-        
-        scene.objectIsGrabbed = true;
-        var obj = scene.currentObject;
-        var hand = scene.playerSpatialState.hands[gamepadIdx]; //<<< watch out for this
-        // obj.translation.x += -1*hand.pos.x;
-        // obj.translation.y += -1*hand.pos.y;
-        // obj.translation.z += -1*hand.pos.z;
-
-
-        // obj.rotation.x = -1*hand.ori.x;
-        // obj.rotation.y = -1*hand.ori.y;
-        // obj.rotation.z = -1*hand.ori.z;
-        // obj.ori
-
-        // obj.behaviours.push(FCUtil.makeGamepadTracker(scene, gamepadIdx));
-        
-        var mkTranslater = function (initial) {
-            console.log(initial);
-            var tFn = function (drawable, timepoint) {
-                var hand = scene.playerSpatialState.hands[gamepadIdx];
-                var mat = mat4.create();
-                var trans = vec3.fromValues(hand.pos.x-initial.x, hand.pos.y-initial.y, hand.pos.z-initial.z);
-                mat4.fromTranslation(mat, trans);
-                drawable.matrix = mat;
-            }
-            return tFn;
-        }
-        
-        obj.behaviours.push(mkTranslater({
-            x:hand.pos.x, 
-            y:hand.pos.y, 
-            z:hand.pos.z}));
-    }
-    
-    Scene.prototype.quatToEuler = function (quat) {
-        
-        var target = {};
-        var x = quat[0], y = quat[1], z = quat[2], w = quat[3];
-        //
-        // toEuler = function(target,order){
-        //     order = order || "YZX";
- 
-            var heading, attitude, bank;
-            // var x = this.x, y = this.y, z = this.z, w = this.w;
- 
-            // switch(order){
-            // case "YZX":
-                var test = x*y + z*w;
-                if (test > 0.499) { // singularity at north pole
-                    heading = 2 * Math.atan2(x,w);
-                    attitude = Math.PI/2;
-                    bank = 0;
-                }
-                if (test < -0.499) { // singularity at south pole
-                    heading = -2 * Math.atan2(x,w);
-                    attitude = - Math.PI/2;
-                    bank = 0;
-                }
-                if(isNaN(heading)){
-                    var sqx = x*x;
-                    var sqy = y*y;
-                    var sqz = z*z;
-                    heading = Math.atan2(2*y*w - 2*x*z , 1 - 2*sqy - 2*sqz); // Heading
-                    attitude = Math.asin(2*test); // attitude
-                    bank = Math.atan2(2*x*w - 2*y*z , 1 - 2*sqx - 2*sqz); // bank
-                }
-            //     break;
-            // default:
-            //     throw new Error("Euler order "+order+" not supported yet.");
-            // }
- 
-            target.y = heading;
-            target.z = attitude;
-            target.x = bank;
-        // };
-        return target;
-        
-    }
-    
-    
-    Scene.prototype.releaseCurrentObject = function () {
-        var scene = this;
-        scene.objectIsGrabbed = false;
-        var obj = scene.currentObject;
-        obj.behaviours = [];
-        
-        /* While the object is "grabbed" (ie. has a tracker behaviour applied) its matrix is being updated */
-        /* constantly with one derived from the gamepad matrix. Now that the object is "released" we need to */
-        /* capture those values and write them back into the object's translation and rotation attribs. */
-        
-        var rot = quat.create();
-        var tra = vec3.create();
-        mat4.getRotation(rot, obj.matrix);
-        mat4.getTranslation(tra, obj.matrix);
-        
-        obj.translation.x = tra[0];
-        obj.translation.y = tra[1];
-        obj.translation.z = tra[2];
-        
-        /* Turns out converting a quaternion to a set of angles is fraught with complexity. SO let's just */
-        /* store the quat for later use. If you can't beat 'em, join 'em, right? */
-        // obj.rotationQuaternion = rot;
-        
-        // var vvv = vec3.fromValues(1,1,1);
-        // var a = quat.getAxisAngle(vvv, rot);
-        //
-        //
-        //
-        // vec3.transformQuat(vvv, vvv, rot);
-        // console.log(vvv);
-        
-        var rvec = scene.quatToEuler(rot);
-        console.log(rvec);
-        // obj.rotation.x = rvec[0];
-        // obj.rotation.y = rvec[1];
-        // obj.rotation.z = rvec[2];
-        
-        obj.rotation.x = rvec.x;
-        obj.rotation.y = rvec.y;
-        obj.rotation.z = rvec.z;
-        
-        // obj.rotation.x = quat.getAxisAngle(vvv, rot);
-        // obj.rotation.y = quat.getAxisAngle([0,1,0], rot);
-        // obj.rotation.z = quat.getAxisAngle([0,0,1], rot);
-        
-        obj.matrix = null;
-        
-        // obj.translation.x = obj.translation.x + obj.pos.x;
-        // obj.translation.y = obj.translation.y + obj.pos.y;
-        // obj.translation.z = obj.translation.z + obj.pos.z;
-        // obj.pos = {x:0, y:0, z:0};
-    }
 
 
 
