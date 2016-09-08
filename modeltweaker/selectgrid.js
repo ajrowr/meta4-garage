@@ -43,11 +43,14 @@ SelectGrid.prototype.setRange = function (rStart, rLength) {
     if (rLength == null) {
         rLength = this.currentRange.length;
     }
-    this.currentRange = {
+    var range = {
         start: rStart,
         length: rLength,
         end: Math.min(rStart+rLength, this.dataItems.length)
     };
+    range.isStart = range.start == 0;
+    range.isEnd = range.end == this.dataItems.length;
+    this.currentRange = range;
     this._arrangingIdx = 0;
     return this.currentRange;
 }
@@ -87,6 +90,14 @@ SelectGrid.prototype.getDataForSelection = function () {
     return this.dataItems[this.currentRange.start + gridIdx];
 }
 
+SelectGrid.prototype.setCaret = function (r, c) {
+    r = r || 0;
+    c = c || 0;
+    this.selectCaret.row = r;
+    this.selectCaret.column = c;
+    this.getSelectedItem().interact('select');
+}
+
 SelectGrid.prototype.getItemForGridIndex = function (gridIdx) {
     // var disp, dat, isSpecial=false;
     // if (this.specialSelection) {
@@ -115,8 +126,6 @@ SelectGrid.prototype.getSelectedItem = function () {
 SelectGrid.prototype.getDataIndexForGridIndex = function (gridIdx) {
     return this.currentRange.start + gridIdx;
 }
-
-
 
 SelectGrid.prototype.getPlacementForGridPosition = function (gridIdx) {
     // console.log(gridIdx);

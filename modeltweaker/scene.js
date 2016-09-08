@@ -62,6 +62,7 @@ window.ExperimentalScene = (function () {
         
         this.uiMode = 0;
         this.uiModes = [
+            {mode: 'MODE_FOLDER_SELECT', statusTexLabel: 'blue'},
             {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
             {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'}
             // {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
@@ -258,6 +259,8 @@ window.ExperimentalScene = (function () {
         this.previewGrid = null;
         this.folderGrid = null;
         this.activeGrid = null;
+        
+        this._meshCache = {};
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
@@ -333,8 +336,9 @@ window.ExperimentalScene = (function () {
         var grid = new SelectGrid({
             rowHeight: 0.25, perRow: 1,
             rows: 10, columns: 1, 
-            offset: {z:layout.grid.offsetZ(scene.stageParams), y:0.3}
+            offset: {z:layout.grid.offsetZ(scene.stageParams)-0.35, y:0.3}
         });
+        
         scene.folderGrid = grid;
         
     }
@@ -347,6 +351,10 @@ window.ExperimentalScene = (function () {
         if (rangeStart != null) {
             grid.setRange(rangeStart, rangeLength);
         }
+        if (grid.currentRange.isStart) grid.specialItems.PAGE_LEFT.hidden = true;
+        else grid.specialItems.PAGE_LEFT.hidden = false;
+        if (grid.currentRange.isEnd) grid.specialItems.PAGE_RIGHT.hidden = true;
+        else grid.specialItems.PAGE_RIGHT.hidden = false;
         
         /* TODO remove items from scene.previews when changing */
         /* TODO consider caching preview meshes */
@@ -364,8 +372,9 @@ window.ExperimentalScene = (function () {
                     FCShapeUtils.loadMesh(previuUrl)
                     .then(function (mesh) {
                         var placement = grid.getPlacementForGridPosition(modelIdx);
-                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, {scale:layout.grid.previewScale}, placement.orientation,
-                            {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
+                        var newPrev = new FCShapes.MeshShape(mesh, placement.location, 
+                                            {scale:layout.grid.previewScale}, placement.orientation,
+                                            {materialLabel:'matteplastic', textureLabel:'white', groupLabel:'previews'}
                         );
                         newPrev.metadata.name = modelInf.name;
                         newPrev.metadata.gridIdx = modelIdx;
@@ -432,36 +441,48 @@ window.ExperimentalScene = (function () {
         
     }
     
-    Scene.prototype.showFolder = function (folder) {
-        console.log('Showing', folder);
-        var scene = this;
-        /* Grid construction - NB this will be done in scene setup */
-        if (!scene.previewGrid) scene.buildPreviewGrid();
-        if (!scene.folderGrid) scene.buildFolderGrid();
+    Scene.prototype.getActiveGrid = function (folder) {
+        var mode = this.uiModes[this.uiMode];
+        if (mode.mode == 'MODE_PREVIEW_SELECT') return this.previewGrid;
+        else if (mode.mode == 'MODE_FOLDER_SELECT') return this.folderGrid;
         
-        /* Remove previous grids */
-        /* Load the folder info via XHR */
-        /* Show the title of this folder */
-        /* Show the list of folders available from here in the folderGrid */
-        /* Show the items in this folder in the previewGrid */
+    }
+    
+    Scene.prototype.showFolder = function (folder) {
         var scene = this;
-        scene.loadModelList(folder)
-        .then(function (remoteInf) {
-            scene.previewGrid.setData(remoteInf.files);
-            scene.updatePreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
+        // console.log(scene);
+        return new Promise(function (resolve, reject) {
+            console.log('Showing', folder);
+            /* Grid construction - NB this will be done in scene setup */
+            if (!scene.previewGrid) scene.buildPreviewGrid();
+            if (!scene.folderGrid) scene.buildFolderGrid();
+        
+            /* Remove previous grids */
+            /* Load the folder info via XHR */
+            /* Show the title of this folder */
+            /* Show the list of folders available from here in the folderGrid */
+            /* Show the items in this folder in the previewGrid */
+            // var scene = this;
+            scene.loadModelList(folder)
+            .then(function (remoteInf) {
+                scene.previewGrid.setData(remoteInf.files);
+                scene.updatePreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
             
-            // scene.showFolderGrid(remoteInf.folders);
-            var dests = [];
-            console.log(remoteInf);
-            if (remoteInf.parent) {
-                dests.push(remoteInf.parent);
-            }
-            scene.folderGrid.setData(dests.concat(remoteInf.folders));
-            scene.updateFolders(0, 10);
+                // scene.showFolderGrid(remoteInf.folders);
+                var dests = [];
+                console.log(remoteInf);
+                if (remoteInf.parent) {
+                    dests.push(remoteInf.parent);
+                }
+                scene.folderGrid.setData(dests.concat(remoteInf.folders));
+                scene.updateFolders(0, 10);
             
-            scene.activeGrid = scene.previewGrid;
+                // scene.activeGrid = scene.previewGrid;
             
-            // scene.showPreviews(remoteInf.files);
+                // scene.showPreviews(remoteInf.files);
+                resolve();
+            })
+            
         })
     }
     
@@ -572,7 +593,7 @@ window.ExperimentalScene = (function () {
         
     Scene.prototype.interactWithSelection = function (interaction, params) {
         var scene = this;
-        var item = scene.activeGrid.getSelectedItem();
+        var item = scene.getActiveGrid().getSelectedItem();
         item.display.interact(interaction, {data:item.data});
         
         
@@ -583,7 +604,19 @@ window.ExperimentalScene = (function () {
         if (btnIdx == 0 && btnStatus == 'pressed') {
             var selDir = (sector == 'w' && 'LEFT' || sector == 'e' && 'RIGHT' || 
                         sector == 'n' && 'UP' || sector == 's' && 'DOWN' || null);
-            if (selDir) scene.activeGrid.moveSelectCaret(selDir);
+            if (selDir) scene.previewGrid.moveSelectCaret(selDir);
+        }
+        else if (btnIdx == 1 && btnStatus == 'pressed') {
+            scene.interactWithSelection('activate');
+        }
+    }
+
+    Scene.prototype.handleButton_MODE_FOLDER_SELECT = function (btnIdx, btnStatus, sector, myButton, extra) {
+        var scene = this;
+        if (btnIdx == 0 && btnStatus == 'pressed') {
+            var selDir = (sector == 'w' && 'LEFT' || sector == 'e' && 'RIGHT' || 
+                        sector == 'n' && 'UP' || sector == 's' && 'DOWN' || null);
+            if (selDir) scene.folderGrid.moveSelectCaret(selDir);
         }
         else if (btnIdx == 1 && btnStatus == 'pressed') {
             scene.interactWithSelection('activate');
@@ -605,7 +638,7 @@ window.ExperimentalScene = (function () {
     Scene.prototype.handleButton_MODE_OBJ_ROT_SCALE = function (btnIdx, btnStatus, sector, myButton, extra) {
         var scene = this;
         var myObj = scene.previewObject || scene.currentItem && scene.currentItem.model
-        if (btnIdx == 0 && btnStatus == 'held') {
+        if (myObj && btnIdx == 0 && btnStatus == 'held') {
             if (sector == 'n') {
                 myObj.scaleFactor *= 1.005;
             }
@@ -812,7 +845,12 @@ window.ExperimentalScene = (function () {
         //     scene.setupPreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
         // });
         
-        scene.showFolder(scene.modelFolder);
+        scene.showFolder(scene.modelFolder)
+        .then(function () {
+            // scene.activeGrid = scene.folderGrid;
+            scene.setUIMode(0);
+        })
+        
         
         
         // scene.showStatusIndicator(scene.textures.white);
@@ -839,6 +877,24 @@ window.ExperimentalScene = (function () {
             }
             scene.displayBoard = newBoard;
             scene.addObject(newBoard);
+        })
+    }
+    
+    Scene.prototype._fetchMeshViaCache = function (meshPath) {
+        var scene = this;
+        return new Promise(function (resolve, reject) {
+            if (scene._meshCache[meshPath]) {
+                resolve(scene._meshCache[meshPath]);
+            }
+            else {
+                FCShapeUtils.loadMesh(meshPath)
+                .then(function (mesh) {
+                    console.log('Stashing', meshPath);
+                    scene._meshCache[meshPath] = mesh;
+                    resolve(mesh);
+                });
+            }
+            
         })
     }
     
@@ -870,7 +926,7 @@ window.ExperimentalScene = (function () {
                 }
                 
                 var meshPath = scene.fontGlyphUrlFormat.replace('@@', chrCode);/* */
-                glyphPromises.push(FCShapeUtils.loadMesh(meshPath));
+                glyphPromises.push(scene._fetchMeshViaCache(meshPath));
             }
             Promise.all(glyphPromises).then(function (meshes) {
                 var glyphobjs = [];
