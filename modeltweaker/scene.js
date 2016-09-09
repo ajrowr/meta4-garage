@@ -364,6 +364,7 @@ window.ExperimentalScene = (function () {
         }
         
         var myItems = grid.getDataForCurrentRange();
+        grid.setCaret();
         for (var i=0; i<myItems.length; i++) {
             var myInf = myItems[i];
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
@@ -397,7 +398,8 @@ window.ExperimentalScene = (function () {
                         }
                         scene.addObject(newPrev);
                         scene.previews.push(newPrev);//??
-                        grid.gridItems[modelIdx]=newPrev;
+                        grid.setDisplayItemAtIndex(newPrev, modelIdx);
+                        // grid.gridItems[modelIdx]=newPrev;
                     });
                     
                 }(previewUrl, myInf, i);
@@ -420,6 +422,7 @@ window.ExperimentalScene = (function () {
         }
         
         var myFolders = grid.getDataForCurrentRange();
+        grid.setCaret();
         for (var i=0; i<myFolders.length; i++) {
             var myFolder = myFolders[i];
             var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
@@ -433,7 +436,8 @@ window.ExperimentalScene = (function () {
                 )
                 .then(function (cluster) {
                     // textCluster = cluster;
-                    grid.gridItems[idx] = cluster;
+                    // grid.gridItems[idx] = cluster;
+                    grid.setDisplayItemAtIndex(cluster, idx);
                 })
             }(myInf, i);
             

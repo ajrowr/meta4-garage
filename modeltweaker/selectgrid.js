@@ -39,6 +39,11 @@ var SelectGrid = function (params) {
     
 }
 
+SelectGrid.prototype.setDisplayItemAtIndex = function (dispItem, idx) {
+    this.gridItems[idx] = dispItem;
+    if (idx == this.getSelectedIndex()) dispItem.interact('select');
+}
+
 SelectGrid.prototype.setRange = function (rStart, rLength) {
     if (rLength == null) {
         rLength = this.currentRange.length;
@@ -95,7 +100,9 @@ SelectGrid.prototype.setCaret = function (r, c) {
     c = c || 0;
     this.selectCaret.row = r;
     this.selectCaret.column = c;
-    this.getSelectedItem().interact('select');
+    var item = this.getSelectedItem();
+    console.log(item);
+    if (item.display && item.display.interact) item.display.interact('select');
 }
 
 SelectGrid.prototype.getItemForGridIndex = function (gridIdx) {
