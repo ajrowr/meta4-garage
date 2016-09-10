@@ -42,9 +42,9 @@ ObjContainer.prototype.interact = function (type, params) {
         
 }
 
-var AppMode = function (scene, key, params) {
+var AppMode = function (scene, label, params) {
     var p = params || {};
-    this.key = key;
+    this.label = label;
     this.scene = scene;
     this.enterFunction = p.enterFunction;
     this.exitFunction = p.exitFunction;
@@ -102,13 +102,10 @@ window.ExperimentalScene = (function () {
         this.previewObject = null;
         
         this.uiMode = 0;
-        this.uiModes = [
-            {mode: 'MODE_FOLDER_SELECT', statusTexLabel: 'blue', associatedElement:'folderGrid'},
-            {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green', associatedElement:'previewGrid'},
-            {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'}
-            // {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
-            // {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
-        ];
+        this.uiModes = [];
+        
+        /* Modes config. */
+        /* Preview grid is always visible. folderGrid is mutex with the currentItem. */
         
         /* AppModes are self-contained and should not make any assumptions about what other modes */
         /* expect, require or provide. They provide a means for coordinating the various UI elements */
@@ -121,15 +118,10 @@ window.ExperimentalScene = (function () {
         /* an animation frame won't be requested in between, so there should be no flicker :) */
         /* Corollary: if a mode needs something, it should show it on enter and hide it on exit. */
         /* Modes should not have to hide things on the off chance that they are currently being displayed. */
-        /* Rule of thumb - anything the mode does in its enter() function should be undone in its exit(). */
-        
-        this.uiModes2 = [];
-        
-        /* Modes config. */
-        /* Preview grid is always visible. folderGrid is mutex with the currentItem. */
+        /* Rule of thumb - anything the mode does in its enter() function should be undone in its exit(). */        
         
         /* Show the folder and preview grids, hide the current item */
-        this.uiModes2.push(new AppMode(this, 'MODE_FOLDER_SELECT', {
+        this.uiModes.push(new AppMode(this, 'MODE_FOLDER_SELECT', {
             statusTextureLabel: 'blue',
             associatedElementKeys: ['folderGrid'],
             enterFunction: function () {
@@ -147,7 +139,7 @@ window.ExperimentalScene = (function () {
             }
         }));
         
-        this.uiModes2.push(new AppMode(this, 'MODE_PREVIEW_SELECT', {
+        this.uiModes.push(new AppMode(this, 'MODE_PREVIEW_SELECT', {
             statusTextureLabel: 'green',
             enterFunction: function () {
                 var current = this.getElement('currentItem');
@@ -165,7 +157,7 @@ window.ExperimentalScene = (function () {
             }
         }));
         
-        this.uiModes2.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
+        this.uiModes.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
             statusTextureLabel: 'red', 
             enterFunction: function () {
                 var current = this.getElement('currentItem');
@@ -183,15 +175,6 @@ window.ExperimentalScene = (function () {
             
             
         }));
-
-        
-        // this.trackpadMode = 0;
-        // this.trackpadModes = [
-        //     {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
-        //     {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'},
-        //     {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
-        //     {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
-        // ];
         
         this.cameras = {
             cam1x: {
@@ -566,8 +549,8 @@ window.ExperimentalScene = (function () {
     
     Scene.prototype.getActiveGrid = function (folder) {
         var mode = this.uiModes[this.uiMode];
-        if (mode.mode == 'MODE_PREVIEW_SELECT') return this.previewGrid;
-        else if (mode.mode == 'MODE_FOLDER_SELECT') return this.folderGrid;
+        if (mode.label == 'MODE_PREVIEW_SELECT') return this.previewGrid;
+        else if (mode.label == 'MODE_FOLDER_SELECT') return this.folderGrid;
         
     }
     
@@ -699,48 +682,7 @@ window.ExperimentalScene = (function () {
     Scene.prototype.setUIMode = function (idx) {
         var scene = this;
         
-        // if (modeInf.associatedElement) {
-        //     var elem = scene[modeInf.associatedElement];
-        //     if (elem) {
-        //         elem.focus()
-        //     }
-        // }
-        
-        /* If exiting a mode, send a blur signal to its UI element */
-        var prevModeInf = scene.uiModes[scene.uiMode];
-        if (prevModeInf && prevModeInf.associatedElement) {
-            var elem = scene[prevModeInf.associatedElement];
-            if (elem) {
-                elem.blur()
-            }
-        }
-        
-        
-        if (idx === null || idx === undefined) {
-            scene.uiMode = ++scene.uiMode%scene.uiModes.length;
-        }
-        else {
-            scene.uiMode = 0; //??
-        }
-        var modeInf = scene.uiModes[scene.uiMode];
-        scene.showStatusIndicator(scene.textures[modeInf.statusTexLabel]);
-        
-        /* Send a focus signal to UI element for new mode */
-        if (modeInf.associatedElement) {
-            var elem = scene[modeInf.associatedElement];
-            if (elem) {
-                elem.focus();
-            }
-        }
-        
-        /* We probably want to beef this up if we want to be doing things like eg. changing up the lights on mode switch */
-        
-    }
-    
-    Scene.prototype.setUIMode2 = function (idx) {
-        var scene = this;
-        
-        var prevMode = scene.uiModes2[scene.uiMode];
+        var prevMode = scene.uiModes[scene.uiMode];
         prevMode.exit();
         
         if (idx === null || idx === undefined) {
@@ -750,7 +692,8 @@ window.ExperimentalScene = (function () {
             scene.uiMode = 0; //??
         }
         
-        var newMode = scene.uiModes2[scene.uiMode];
+        var newMode = scene.uiModes[scene.uiMode];
+        scene.showStatusIndicator(scene.textures[newMode.statusTextureLabel]);
         newMode.enter();
         
     }
@@ -792,21 +735,9 @@ window.ExperimentalScene = (function () {
         }
     }
 
-    // Scene.prototype.handleButton_MODE_PREVIEW_SELECT = function (btnIdx, btnStatus, sector, myButton, extra) {
-    //     var scene = this;
-    //     if (btnIdx == 0 && btnStatus == 'pressed') {
-    //         var selDir = (sector == 'w' && 'LEFT' || sector == 'e' && 'RIGHT' ||
-    //                     sector == 'n' && 'UP' || sector == 's' && 'DOWN' || null);
-    //         if (selDir) scene.activeGrid.moveSelectCaret(selDir);
-    //     }
-    //     else if (btnIdx == 1 && btnStatus == 'pressed') {
-    //         scene.interactWithSelection('activate');
-    //     }
-    // }
-    
     Scene.prototype.handleButton_MODE_OBJ_ROT_SCALE = function (btnIdx, btnStatus, sector, myButton, extra) {
         var scene = this;
-        var myObj = scene.previewObject || scene.currentItem && scene.currentItem.model
+        var myObj = scene.previewObject || scene.currentItem && scene.currentItem.model;
         if (myObj && btnIdx == 0 && btnStatus == 'held') {
             if (sector == 'n') {
                 myObj.scaleFactor *= 1.005;
@@ -829,7 +760,7 @@ window.ExperimentalScene = (function () {
         var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
             /* Menu button always changes the UI mode */
             if (btnIdx == 3 && btnStatus == 'pressed') {
-                scene.setUIMode2(null);
+                scene.setUIMode(null);
                 return;
             }
             else if (btnIdx == '2' && btnStatus == 'pressed') {
@@ -837,7 +768,7 @@ window.ExperimentalScene = (function () {
             }
             
             
-            var uiMode = scene.uiModes[scene.uiMode].mode; /* TODO calling it trackpadMode is outdated */
+            var uiMode = scene.uiModes[scene.uiMode].label;
             var handler = scene['handleButton_'+uiMode];
             if (handler) {
                 return handler.call(scene, btnIdx, btnStatus, sector, myButton, extra);
@@ -1070,7 +1001,6 @@ window.ExperimentalScene = (function () {
             else {
                 FCShapeUtils.loadMesh(meshPath)
                 .then(function (mesh) {
-                    console.log('Stashing', meshPath);
                     scene._meshCache[meshPath] = mesh;
                     resolve(mesh);
                 });
