@@ -149,6 +149,12 @@ SelectGrid.prototype.getItemForGridIndex = function (gridIdx) {
     };
 }
 
+SelectGrid.prototype.distributeToDisplayItems = function (fn) {
+    for (var i=0; i<this.gridItems.length; i++) {
+        fn(this.gridItems[i]);
+    }
+}
+
 SelectGrid.prototype.getSelectedItem = function () {
     if (this.specialSelection) return {
         data: null,

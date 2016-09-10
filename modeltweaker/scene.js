@@ -46,6 +46,7 @@ var AppMode = function (scene, label, params) {
     var p = params || {};
     this.label = label;
     this.scene = scene;
+    this.lights = p.lights;
     this.enterFunction = p.enterFunction;
     this.exitFunction = p.exitFunction;
     this.associatedElementKeys = p.associatedElementKeys;
@@ -100,82 +101,7 @@ window.ExperimentalScene = (function () {
             idx: null
         };
         this.previewObject = null;
-        
-        this.uiMode = 0;
-        this.uiModes = [];
-        
-        /* Modes config. */
-        /* Preview grid is always visible. folderGrid is mutex with the currentItem. */
-        
-        /* AppModes are self-contained and should not make any assumptions about what other modes */
-        /* expect, require or provide. They provide a means for coordinating the various UI elements */
-        /* installed in the scene and they don't know when, how or in what order they will be activated; */
-        /* so they should entirely manage their own expectations and tidy up after themselves. */
-        /* enterFunctions ensure that everything is as the mode expects to operate. */
-        /* exitFunctions ensure that everything is tidied up ready for the next mode. */
-        /* Note that doing things like (eg) setting something invisible in one mode exit and */
-        /* then immediately setting the same thing visible in the next mode enter ARE FINE because */
-        /* an animation frame won't be requested in between, so there should be no flicker :) */
-        /* Corollary: if a mode needs something, it should show it on enter and hide it on exit. */
-        /* Modes should not have to hide things on the off chance that they are currently being displayed. */
-        /* Rule of thumb - anything the mode does in its enter() function should be undone in its exit(). */        
-        
-        /* Show the folder and preview grids, hide the current item */
-        this.uiModes.push(new AppMode(this, 'MODE_FOLDER_SELECT', {
-            statusTextureLabel: 'blue',
-            associatedElementKeys: ['folderGrid'],
-            enterFunction: function () {
-                var current = this.getElement('currentItem');
-                if (current.model) {
-                    current.model.hidden = true;
-                }
-                // this.getElement('previewGrid').setVisible(true);
-                this.getElement('folderGrid').setVisible(true);
-                this.getElement('folderGrid').focus();
-            },
-            exitFunction: function () {
-                this.getElement('folderGrid').setVisible(false);
-                this.getElement('folderGrid').blur();
-            }
-        }));
-        
-        this.uiModes.push(new AppMode(this, 'MODE_PREVIEW_SELECT', {
-            statusTextureLabel: 'green',
-            enterFunction: function () {
-                var current = this.getElement('currentItem');
-                if (current.model) {
-                    current.model.hidden = false;
-                }
-                this.getElement('previewGrid').focus();
-            },
-            exitFunction: function () {
-                var current = this.getElement('currentItem');
-                if (current.model) {
-                    current.model.hidden = true;
-                }
-                this.getElement('previewGrid').blur();
-            }
-        }));
-        
-        this.uiModes.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
-            statusTextureLabel: 'red', 
-            enterFunction: function () {
-                var current = this.getElement('currentItem');
-                if (current.model) {
-                    current.model.hidden = false;
-                }
                 
-            },
-            exitFunction: function () {
-                var current = this.getElement('currentItem');
-                if (current.model) {
-                    current.model.hidden = true;
-                }
-            }
-            
-            
-        }));
-        
         this.cameras = {
             cam1x: {
                 position: {x:0, y:1, z:-1.5},
@@ -281,6 +207,114 @@ window.ExperimentalScene = (function () {
             this.lightPool.blueBackfill, 
             this.lightPool.dimWhiteBackfill
         ];
+        
+        
+        this.uiMode = 0;
+        this.uiModes = [];
+        
+        /* Modes config. */
+        /* Preview grid is always visible. folderGrid is mutex with the currentItem. */
+        
+        /* AppModes are self-contained and should not make any assumptions about what other modes */
+        /* expect, require or provide. They provide a means for coordinating the various UI elements */
+        /* installed in the scene and they don't know when, how or in what order they will be activated; */
+        /* so they should entirely manage their own expectations and tidy up after themselves. */
+        /* enterFunctions ensure that everything is as the mode expects to operate. */
+        /* exitFunctions ensure that everything is tidied up ready for the next mode. */
+        /* Note that doing things like (eg) setting something invisible in one mode exit and */
+        /* then immediately setting the same thing visible in the next mode enter ARE FINE because */
+        /* an animation frame won't be requested in between, so there should be no flicker :) */
+        /* Corollary: if a mode needs something, it should show it on enter and hide it on exit. */
+        /* Modes should not have to hide things on the off chance that they are currently being displayed. */
+        /* Rule of thumb - anything the mode does in its enter() function should be undone in its exit(). */        
+        
+        /* Show the folder and preview grids, hide the current item */
+        this.uiModes.push(new AppMode(this, 'MODE_FOLDER_SELECT', {
+            statusTextureLabel: 'blue',
+            associatedElementKeys: ['folderGrid'],
+            lights: [
+                this.lightPool.plainWhiteAmbientOverhead, 
+                this.lightPool.blueBackfill, 
+                this.lightPool.dimWhiteBackfill
+            ],
+            enterFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = true;
+                }
+                // this.getElement('previewGrid').setVisible(true);
+                this.getElement('folderGrid').setVisible(true);
+                this.getElement('folderGrid').focus();
+                this.scene.lights = this.lights;
+                this.scene.updateLighting();
+            },
+            exitFunction: function () {
+                this.getElement('folderGrid').setVisible(false);
+                this.getElement('folderGrid').blur();
+            }
+        }));
+        
+        this.uiModes.push(new AppMode(this, 'MODE_PREVIEW_SELECT', {
+            statusTextureLabel: 'green',
+            lights: [
+                this.lightPool.plainWhiteAmbientOverhead, 
+                this.lightPool.blueBackfill, 
+                this.lightPool.dimWhiteBackfill
+            ],
+            enterFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = false;
+                }
+                this.getElement('previewGrid').focus();
+                this.scene.lights = this.lights;
+                this.scene.updateLighting();
+            },
+            exitFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = true;
+                }
+                this.getElement('previewGrid').blur();
+            }
+        }));
+        
+        this.uiModes.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
+            statusTextureLabel: 'red', 
+            lights: [
+                {
+                                position: [0.6, 1.5, 2.0, 1.0],
+                                ambient: [0.21, 0.21, 0.21],
+                                diffuse: [0.6, 0.8, 0.45],
+                                specular: [0.0, 0.0, 0.0]
+                            },
+                            {
+                                            position: [-0.6, 1.5, 2.0, 1.0],
+                                            ambient: [0.21, 0.21, 0.21],
+                                            diffuse: [0.8, 0.6, 0.45],
+                                            specular: [0.0, 0.0, 0.0]
+                                        }
+            ],
+            enterFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = false;
+                }
+                this.getElement('previewGrid').distributeToDisplayItems(function (o,p) {o.textureLabel='gray';});
+                this.scene.lights = this.lights;
+                this.scene.updateLighting();
+            },
+            exitFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = true;
+                }
+                this.getElement('previewGrid').distributeToDisplayItems(function (o,p) {o.textureLabel='white';});
+            }
+            
+            
+        }));
+        
         
         this.uiLayouts = {
             LAYOUT_STANDING: {
