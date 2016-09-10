@@ -42,14 +42,54 @@ ObjContainer.prototype.interact = function (type, params) {
         
 }
 
+var AppMode = function (scene, key, params) {
+    var p = params || {};
+    this.key = key;
+    this.scene = scene;
+    this.enterFunction = p.enterFunction;
+    this.exitFunction = p.exitFunction;
+    this.associatedElementKeys = p.associatedElementKeys;
+    
+    this.statusTextureLabel = p.statusTextureLabel;
+}
+
+AppMode.prototype.enter = function () {
+    if (this.enterFunction) this.enterFunction.call(this);
+}
+
+AppMode.prototype.exit = function () {
+    if (this.exitFunction) this.exitFunction.call(this);
+}
+
+AppMode.prototype.distribute = function (fn) {
+    for (var i=0; i<this.associatedElementKeys.length; i++) {
+        var elem = this.scene[this.associatedElementKeys[i]];
+        fn(elem);
+    }
+}
+
+AppMode.prototype.getElement = function (key) {
+    return this.scene[key];
+} /* kinda fast & loose.. */
+
 /*__*/
 
 
 window.ExperimentalScene = (function () {
     "use strict";
-    
+
+    /* Declare any class and instance vars unique to this scene, here. */
+    /* The constructor is perfect for declaring the prerequisites of a scene for autoloading, and setting */
+    /* variables that don't depend on other things. */
+    /* There is a separate phase of setup (namely setupScene) for things that *do* depend on other things. */
+    /* Scene setup goes like this: */
+    /* - This constructor is called */
+    /* - loadPrerequisites is called. This iterates through scene.prerequisites and <...>, ensuring that the <...> */
+    /* - setupPrerequisites is called. <expand on this> */
+    /* - setupScene is called. It has access to all of the prerequisities that have been loaded in previous */
+    /*   stages of the setup, so this is where you should actually construct the scene itself. */
+    /* */
     var Scene = function() {
-        /* Declare any class and instance vars unique to this scene, here. */
         FCScene.call(this);
         // this.meshes = {};
         
@@ -58,24 +98,100 @@ window.ExperimentalScene = (function () {
         this.currentItem = {
             model: null,
             idx: null
-        }
+        };
+        this.previewObject = null;
         
         this.uiMode = 0;
         this.uiModes = [
-            {mode: 'MODE_FOLDER_SELECT', statusTexLabel: 'blue'},
-            {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
+            {mode: 'MODE_FOLDER_SELECT', statusTexLabel: 'blue', associatedElement:'folderGrid'},
+            {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green', associatedElement:'previewGrid'},
             {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'}
             // {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
             // {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
         ];
         
-        this.trackpadMode = 0;
-        this.trackpadModes = [
-            {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
-            {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'},
-            {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
-            {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
-        ];
+        /* AppModes are self-contained and should not make any assumptions about what other modes */
+        /* expect, require or provide. They provide a means for coordinating the various UI elements */
+        /* installed in the scene and they don't know when, how or in what order they will be activated; */
+        /* so they should entirely manage their own expectations and tidy up after themselves. */
+        /* enterFunctions ensure that everything is as the mode expects to operate. */
+        /* exitFunctions ensure that everything is tidied up ready for the next mode. */
+        /* Note that doing things like (eg) setting something invisible in one mode exit and */
+        /* then immediately setting the same thing visible in the next mode enter ARE FINE because */
+        /* an animation frame won't be requested in between, so there should be no flicker :) */
+        /* Corollary: if a mode needs something, it should show it on enter and hide it on exit. */
+        /* Modes should not have to hide things on the off chance that they are currently being displayed. */
+        /* Rule of thumb - anything the mode does in its enter() function should be undone in its exit(). */
+        
+        this.uiModes2 = [];
+        
+        /* Modes config. */
+        /* Preview grid is always visible. folderGrid is mutex with the currentItem. */
+        
+        /* Show the folder and preview grids, hide the current item */
+        this.uiModes2.push(new AppMode(this, 'MODE_FOLDER_SELECT', {
+            statusTextureLabel: 'blue',
+            associatedElementKeys: ['folderGrid'],
+            enterFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = true;
+                }
+                // this.getElement('previewGrid').setVisible(true);
+                this.getElement('folderGrid').setVisible(true);
+                this.getElement('folderGrid').focus();
+            },
+            exitFunction: function () {
+                this.getElement('folderGrid').setVisible(false);
+                this.getElement('folderGrid').blur();
+            }
+        }));
+        
+        this.uiModes2.push(new AppMode(this, 'MODE_PREVIEW_SELECT', {
+            statusTextureLabel: 'green',
+            enterFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = false;
+                }
+                this.getElement('previewGrid').focus();
+            },
+            exitFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = true;
+                }
+                this.getElement('previewGrid').blur();
+            }
+        }));
+        
+        this.uiModes2.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
+            statusTextureLabel: 'red', 
+            enterFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = false;
+                }
+                
+            },
+            exitFunction: function () {
+                var current = this.getElement('currentItem');
+                if (current.model) {
+                    current.model.hidden = true;
+                }
+            }
+            
+            
+        }));
+
+        
+        // this.trackpadMode = 0;
+        // this.trackpadModes = [
+        //     {mode: 'MODE_PREVIEW_SELECT', statusTexLabel: 'green'},
+        //     {mode: 'MODE_OBJ_ROT_SCALE', statusTexLabel: 'white'},
+        //     {mode: 'MODE_OBJ_ROT_JERK', statusTexLabel: 'blue'},
+        //     {mode: 'MODE_OBJ_FIX', statusTexLabel: 'orange'}
+        // ];
         
         this.cameras = {
             cam1x: {
@@ -238,6 +354,9 @@ window.ExperimentalScene = (function () {
                 itemDisplay: {
                     pos: {x:0, y:0, z:2.5},
                     scale: 0.6
+                },
+                text: {
+                    orientation: {x:90/DEG, y:0, z:180/DEG}
                 }
             }
         };
@@ -579,14 +698,60 @@ window.ExperimentalScene = (function () {
     /* If idx is not set, increment */
     Scene.prototype.setUIMode = function (idx) {
         var scene = this;
+        
+        // if (modeInf.associatedElement) {
+        //     var elem = scene[modeInf.associatedElement];
+        //     if (elem) {
+        //         elem.focus()
+        //     }
+        // }
+        
+        /* If exiting a mode, send a blur signal to its UI element */
+        var prevModeInf = scene.uiModes[scene.uiMode];
+        if (prevModeInf && prevModeInf.associatedElement) {
+            var elem = scene[prevModeInf.associatedElement];
+            if (elem) {
+                elem.blur()
+            }
+        }
+        
+        
         if (idx === null || idx === undefined) {
             scene.uiMode = ++scene.uiMode%scene.uiModes.length;
         }
         else {
-            scene.uiMode = 0;
+            scene.uiMode = 0; //??
         }
         var modeInf = scene.uiModes[scene.uiMode];
         scene.showStatusIndicator(scene.textures[modeInf.statusTexLabel]);
+        
+        /* Send a focus signal to UI element for new mode */
+        if (modeInf.associatedElement) {
+            var elem = scene[modeInf.associatedElement];
+            if (elem) {
+                elem.focus();
+            }
+        }
+        
+        /* We probably want to beef this up if we want to be doing things like eg. changing up the lights on mode switch */
+        
+    }
+    
+    Scene.prototype.setUIMode2 = function (idx) {
+        var scene = this;
+        
+        var prevMode = scene.uiModes2[scene.uiMode];
+        prevMode.exit();
+        
+        if (idx === null || idx === undefined) {
+            scene.uiMode = ++scene.uiMode%scene.uiModes.length;
+        }
+        else {
+            scene.uiMode = 0; //??
+        }
+        
+        var newMode = scene.uiModes2[scene.uiMode];
+        newMode.enter();
         
     }
         
@@ -664,7 +829,7 @@ window.ExperimentalScene = (function () {
         var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
             /* Menu button always changes the UI mode */
             if (btnIdx == 3 && btnStatus == 'pressed') {
-                scene.setUIMode(null);
+                scene.setUIMode2(null);
                 return;
             }
             else if (btnIdx == '2' && btnStatus == 'pressed') {
@@ -848,13 +1013,25 @@ window.ExperimentalScene = (function () {
         //     if (scene.autoLoadIdx) scene.loadModelAtIndex(scene.autoLoadIdx);
         //     scene.setupPreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
         // });
+
+        /* Display initial item which is a questionmark aka glyph 63 */
+        FCShapeUtils.loadMesh(scene.fontGlyphUrlFormat.replace('@@', 63))
+        .then(function (mesh) {
+            var layout = scene.uiLayout;
+            var glyph = new FCShapes.MeshShape(mesh, layout.itemDisplay.pos, {scale:1.5}, null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
+            glyph.rotation = layout.text.orientation; /* sometimes we want to rotate instead of orient */
+            glyph.hidden = true;
+            scene.currentItem.model = glyph;
+            scene.currentItem.idx = -1;
+            scene.addObject(glyph);
+        });
+        
         
         scene.showFolder(scene.modelFolder)
         .then(function () {
             // scene.activeGrid = scene.folderGrid;
             scene.setUIMode(0);
         })
-        
         
         
         // scene.showStatusIndicator(scene.textures.white);

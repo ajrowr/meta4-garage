@@ -37,11 +37,13 @@ var SelectGrid = function (params) {
         width: 1.3, depth: -0.6
     };
     
+    this.hasFocus = null;
+    
 }
 
 SelectGrid.prototype.setDisplayItemAtIndex = function (dispItem, idx) {
     this.gridItems[idx] = dispItem;
-    if (idx == this.getSelectedIndex()) dispItem.interact('select');
+    if (this.hasFocus && idx == this.getSelectedIndex()) dispItem.interact('select');
 }
 
 SelectGrid.prototype.setRange = function (rStart, rLength) {
@@ -95,6 +97,32 @@ SelectGrid.prototype.getDataForSelection = function () {
     return this.dataItems[this.currentRange.start + gridIdx];
 }
 
+SelectGrid.prototype.focus = function () {
+    var ditem = this.getGridItemForSelection();
+    if (ditem && ditem.interact) ditem.interact('select');
+    this.hasFocus = true;
+}
+
+SelectGrid.prototype.blur = function () {
+    var ditem = this.getGridItemForSelection();
+    if (ditem && ditem.interact) ditem.interact('deselect');
+    this.hasFocus = false;
+}
+
+/* THIS COMPROMISES THE PHILOSOPHICAL PURITY OF SELECTGRID!! :-| */
+SelectGrid.prototype.setVisible = function (toggle) {
+    for (var i=0; i<this.gridItems.length; i++) {
+        var ditem = this.gridItems[i];
+        if (ditem.distribute) {
+            ditem.distribute(function (o) {o.hidden=!toggle;});
+        }
+        else {
+            ditem.hidden = !toggle;
+            
+        }
+    }
+}
+
 SelectGrid.prototype.setCaret = function (r, c) {
     r = r || 0;
     c = c || 0;
@@ -102,7 +130,7 @@ SelectGrid.prototype.setCaret = function (r, c) {
     this.selectCaret.column = c;
     var item = this.getSelectedItem();
     console.log(item);
-    if (item.display && item.display.interact) item.display.interact('select');
+    if (this.hasFocus && item.display && item.display.interact) item.display.interact('select');
 }
 
 SelectGrid.prototype.getItemForGridIndex = function (gridIdx) {
