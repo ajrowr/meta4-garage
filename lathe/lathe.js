@@ -1,8 +1,8 @@
 
-var P = FCPrimitives;
+var P = FCPrimitives; /* NOTE. this use of P considered dangerous */
 
 var LatheShape = function (pos, size, rotate, params) {
-    P.Drawable.call(this, pos, size, rotate, params);
+    FCPrimitives.Drawable.call(this, pos, size, rotate, params);
     var p = params || {};
     var sz = size || {};
     this.segmentCount = p.segmentCount || 100;
@@ -13,7 +13,7 @@ var LatheShape = function (pos, size, rotate, params) {
     this.verticalSegmentCount = p.verticalSegmentCount || this.profileSampler && 100 || this.profile.length-1;
 }
 
-LatheShape.prototype = Object.create(P.Drawable.prototype);
+LatheShape.prototype = Object.create(FCPrimitives.Drawable.prototype);
 
 LatheShape.prototype.divulge = function () {
     var lathe = this;
@@ -21,7 +21,7 @@ LatheShape.prototype.divulge = function () {
     var indices = [], vertices = [];
     var segmentHeight = lathe.height / lathe.verticalSegmentCount;
     
-    var segPoly = new P.Poly();
+    var segPoly = new FCPrimitives.Poly();
     
     var mkSampler = function (profile) {
         var samp = function (segIdx, segCount) {
@@ -45,10 +45,10 @@ LatheShape.prototype.divulge = function () {
             var z1a = Math.sin(anglePer*j)*r1, z1b = Math.sin(anglePer*(j+1))*r1;
             var x2a = Math.cos(anglePer*j)*r2, x2b = Math.cos(anglePer*(j+1))*r2;
             var z2a = Math.sin(anglePer*j)*r2, z2b = Math.sin(anglePer*(j+1))*r2;
-            var A = P.mkVert(x1a, ylo, z1a);
-            var B = P.mkVert(x1b, ylo, z1b);
-            var C = P.mkVert(x2b, yhi, z2b);
-            var D = P.mkVert(x2a, yhi, z2a);
+            var A = FCPrimitives.mkVert(x1a, ylo, z1a);
+            var B = FCPrimitives.mkVert(x1b, ylo, z1b);
+            var C = FCPrimitives.mkVert(x2b, yhi, z2b);
+            var D = FCPrimitives.mkVert(x2a, yhi, z2a);
             var texL = texincr * j, texR = texincr * (j+1);
             var bl = [texL,1], br = [texR, 1], tl = [texL, 0], tr = [texR,0];
             segPoly.normal(Math.cos(anglePer*(j+0.5)), 0, Math.sin(anglePer*(j+0.5)));
@@ -69,30 +69,38 @@ LatheShape.prototype.divulge = function () {
 }
 
 
+/* Extruders have a Shape and a Profile */
+/* Each can be defined by an array of points or a sampler */
 var LatheExtruderShape = function (pos, size, rotate, params) {
-    P.Drawable.call(this, pos, size, rotate, params);
+    FCPrimitives.Drawable.call(this, pos, size, rotate, params);
     var p = params || {};
     var sz = size || {};
-    this.segmentCount = p.segmentCount || 100;
     this.segmentsFaceInwards = p.segmentsFaceInwards || false;
-    this.profile = p.profile || null;
     this.height = sz.height || 1;
     this.scale = sz.scale || 1;
-    this.profileSampler = p.profileSampler || null;
-    this.samplerType = p.samplerType || null;
-    this.verticalSegmentCount = p.verticalSegmentCount || this.profileSampler && 100 || this.profile && this.profile.length-1 || 100;
 
     this.endcap = true; /* Fake it by doing a very short segment with normals perpendicular to the shape */
 
-    // this.shapePoints = [[-1,0.3], [0,0.3], [0,1], [1,0], [0,-1], [0,-0.3], [-1,-0.3]];
-    this.shapePoints = p.shapePoints || [[-1,0.4], [0,0.4], [0,1], [1,0], [0,-1], [0,-0.4], [-1,-0.4]].reverse();
-
+    // this.shapePoints = p.shapePoints || [[-1,0.4], [0,0.4], [0,1], [1,0], [0,-1], [0,-0.4], [-1,-0.4]].reverse();
+    
+    this.shape = {};
+    this.profile = {
+        segmentCount: p.profile && p.profile.segmentCount || p.segmentCount || 100,
+        points: p.profile && p.profile.points || p.profile || null,
+        sampler: p.profile && p.profile.sampler || p.profileSampler || null,
+        samplerType: p.profile && p.profile.samplerType || null
+    };
+    
+    this.shape = {
+        pointCount: p.shape && p.shape.pointCount || null,
+        points: p.shape && p.shape.points || p.shapePoints,
+                    // || [[-1,0.4], [0,0.4], [0,1], [1,0], [0,-1], [0,-0.4], [-1,-0.4]].reverse(),
+        sampler: p.shape && p.shape.sampler || null,
+        parameters: p.shape && p.shape.parameters || {} 
+    }
 }
 
-
-/* Extruders have Shape and Profile */
-/* Each can be defined by an array of points or a sampler */
-LatheExtruderShape.prototype = Object.create(P.Drawable.prototype);
+LatheExtruderShape.prototype = Object.create(FCPrimitives.Drawable.prototype);
 
 LatheExtruderShape.prototype._makeFaceNormal = function (v1,v2,v3) {
     var X=0,Y=1,Z=2;
@@ -114,16 +122,9 @@ LatheExtruderShape.prototype.divulge = function () {
     var lathe = this;
     var polylist = [];
     var indices = [], vertices = [];
-    var segmentHeight = lathe.height / lathe.verticalSegmentCount;
+    var segmentHeight = lathe.height / lathe.profile.segmentCount;
 
-    var segPoly = new P.Poly();
-
-    // var mkSampler = function (profile) {
-    //     var samp = function (segIdx, segCount) {
-    //         return profile[segIdx];
-    //     }
-    //     return samp;
-    // }
+    var segPoly = new FCPrimitives.Poly();
 
     var samplerFactories = {
         BasicSampler: function (profile) {
@@ -156,47 +157,39 @@ LatheExtruderShape.prototype.divulge = function () {
     };
     
     var samplerType = samplerFactories[lathe.samplerType || 'ExtrudeSampler'];
-    // var mkExtrudeSampler = function (profile) {
-    //     var samp = function (segIdx, segCount) {
-    //         if (segIdx==0) return 0.00001;
-    //         else if (segIdx>=segCount) return 0.00001;
-    //         else if (profile) return profile[segIdx];
-    //         else return 1;
-    //     }
-    //     return samp;
-    // }
 
-    var sampler = lathe.profileSampler || samplerType(lathe.profile);
-    // var shapeSampler = lathe.shapeSampler || function (j, n) {return lathe.shapePoints[j];}
-
-    for (var i=0; i<lathe.verticalSegmentCount; i++) {
+    var sampler = lathe.profileSampler || samplerType(lathe.profile.points);
+    var nShapePoints = lathe.shape.points && lathe.shape.points.length || lathe.shape.pointCount;
+    var shapeSampler = lathe.shape.sampler || function (j, n) {return lathe.shape.points[j];}
+    
+    var sPoints = [];
+    for (var i=0; i<nShapePoints; i++) {
+        sPoints.push(shapeSampler(i, nShapePoints, lathe.shape.parameters));
+    }
+    
+    for (var i=0; i<lathe.profile.segmentCount; i++) {
     
         var ylo = segmentHeight * i, yhi = segmentHeight * (i+1);
         var anglePer = (2*Math.PI)/this.segmentCount; //
-        var r1 = sampler(i, lathe.verticalSegmentCount);
-        var r2 = sampler(i+1, lathe.verticalSegmentCount);
+        var r1 = sampler(i, lathe.profile.segmentCount);
+        var r2 = sampler(i+1, lathe.profile.segmentCount);
         var s = this.scale;
     
         var texincr = 1/this.segmentCount; //
-        for (var j=0; j<this.shapePoints.length; j++) {
-            var sp0 = this.shapePoints[j==0 && this.shapePoints.length-1 || j-1];
-            var sp1 = this.shapePoints[j];
+        for (var j=0; j<nShapePoints; j++) {
+            var sp0 = sPoints[j==0 && nShapePoints-1 || j-1];
+            var sp1 = sPoints[j];
             var x1a = sp0[0]*r1*s, x1b = sp1[0]*r1*s;
             var z1a = sp0[1]*r1*s, z1b = sp1[1]*r1*s;
             var x2a = sp0[0]*r2*s, x2b = sp1[0]*r2*s;
             var z2a = sp0[1]*r2*s, z2b = sp1[1]*r2*s;
-        
-            // var x1a = this.shapePoints[j][0]*r1, x1b = this.shapePoints[j+1][0]*r1;
-            // var z1a = this.shapePoints[j][1]*r1, z1b = this.shapePoints[j+1][1]*r1;
-            // var x2a = this.shapePoints[j][0]*r2, x2b = this.shapePoints[j+1][0]*r2;
-            // var z2a = this.shapePoints[j][1]*r2, z2b = this.shapePoints[j+1][1]*r2;
-            var A = P.mkVert(x1a, ylo, z1a);
-            var B = P.mkVert(x1b, ylo, z1b);
-            var C = P.mkVert(x2b, yhi, z2b);
-            var D = P.mkVert(x2a, yhi, z2a);
+            var A = FCPrimitives.mkVert(x1a, ylo, z1a);
+            var B = FCPrimitives.mkVert(x1b, ylo, z1b);
+            var C = FCPrimitives.mkVert(x2b, yhi, z2b);
+            var D = FCPrimitives.mkVert(x2a, yhi, z2a);
             var texL = texincr * j, texR = texincr * (j+1);
             var bl = [texL,1], br = [texR, 1], tl = [texL, 0], tr = [texR,0];
-            if (this.endcap && i+1==lathe.verticalSegmentCount) {
+            if (this.endcap && i+1==lathe.profile.segmentCount) {
                 segPoly.normal(0, 1, 0); /* If using an endcap then the final segment "faces" directly up */
             }
             else if (this.endcap && i==0) {
