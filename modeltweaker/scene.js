@@ -651,8 +651,17 @@ window.ExperimentalScene = (function () {
             'Index '+idx
         ]);
         
-        FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name))
+        var progressUpdater = function (messageInf) {
+            if (messageInf.status == 'progress' && messageInf.type == 'download') {
+                scene.showFractionComplete(0.5*messageInf.value);
+            }
+            else if (messageInf.status == 'progress' && messageInf.type == 'parse') {
+                scene.showFractionComplete(0.5+(0.5*messageInf.value));
+            }
+        }
+        FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name), null, progressUpdater)
         .then(function (mesh) {
+            scene.showFractionComplete(1);
             var s = scene.previewObject && scene.previewObject.scaleFactor || layout.itemDisplay.scale;
             var newObj = new FCShapes.MeshShape(mesh, layout.itemDisplay.pos, {scale:s}, 
                                 null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
@@ -696,15 +705,35 @@ window.ExperimentalScene = (function () {
         
     }
     
+    Scene.prototype.showFractionComplete = function (f) {
+        var scene = this;
+        scene.statusIndicator.shape.parameters.completion = f;
+        scene.prepareObject(scene.statusIndicator);
+    }
+    
     /* We're making a new lathe each time, when we could probably just change the texture */
     Scene.prototype.showStatusIndicator = function (tex) {
         var scene = this;
         if (scene.statusIndicator) {
             scene.removeObject(scene.statusIndicator);
         }
-        var si = new FCShapes.LatheShape(
-            null, {height: 0.01, profile:[0.02, 0.02, 0.01, 0]},
-            null, {shaderLabel:'diffuse', texture:tex}
+        var pacmanShapeSampler = function (i, n, p) {
+            var fract = i/n;
+            // console.log(p);
+            if (fract<(1-p.completion||0)) return [0,0];
+            var ang = 2*Math.PI*(fract);
+            return [Math.cos(ang), Math.sin(ang)];
+        }
+        var siConfig = {
+            materialLabel:'matteplastic', label:'statusIndicator',
+            samplerType: 'BeveledExtrudeSampler',
+            shape: {
+                pointCount: 40, sampler: pacmanShapeSampler, parameters:{completion:1}
+            }
+        };
+        var si = new FCShapes.LatheExtruderShape(
+            null, {height: 0.01, scale:0.02},
+            null, siConfig
         );
         si.behaviours.push(FCUtil.makeGamepadTracker(scene, 0, null));
         si.translation.z = 0.05;
