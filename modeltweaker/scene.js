@@ -187,7 +187,7 @@ window.ExperimentalScene = (function () {
                 diffuse: [0.8, 0.8, 0.7],
                 specular: [0.0, 0.0, 0.0]
             },
-            blueBackfill: {
+            brightBlueBackfill: {
                 position: [0.0, 3.0, 5.0, 1.0],
                 ambient: [0.0, 0.0, 0.0],
                 diffuse: [0.2, 0.2, 0.8],
@@ -198,13 +198,24 @@ window.ExperimentalScene = (function () {
                 ambient: [0.0, 0.0, 0.0],
                 diffuse: [0.2, 0.2, 0.2],
                 specular: [0.0, 0.0, 0.0]
+            },
+            dimAmbient: {
+                ambient: [0.2, 0.2, 0.2]
+            },
+            brightWhiteFrontal: {
+                position: [-0.3, 1.5, 1.5, 1],
+                diffuse: [0.8, 0.8, 0.9]
+            },
+            dimYellowHighlight: {
+                position: [1.0, 0.7, 1.6, 1],
+                diffuse: [0.5, 0.5, 0.0]
             }
             
         }
                 
         this.lights = [
             this.lightPool.plainWhiteAmbientOverhead, 
-            this.lightPool.blueBackfill, 
+            this.lightPool.brightBlueBackfill, 
             this.lightPool.dimWhiteBackfill
         ];
         
@@ -234,7 +245,7 @@ window.ExperimentalScene = (function () {
             associatedElementKeys: ['folderGrid'],
             lights: [
                 this.lightPool.plainWhiteAmbientOverhead, 
-                this.lightPool.blueBackfill, 
+                this.lightPool.brightBlueBackfill, 
                 this.lightPool.dimWhiteBackfill
             ],
             enterFunction: function () {
@@ -258,7 +269,7 @@ window.ExperimentalScene = (function () {
             statusTextureLabel: 'green',
             lights: [
                 this.lightPool.plainWhiteAmbientOverhead, 
-                this.lightPool.blueBackfill, 
+                this.lightPool.brightBlueBackfill, 
                 this.lightPool.dimWhiteBackfill
             ],
             enterFunction: function () {
@@ -280,21 +291,22 @@ window.ExperimentalScene = (function () {
         }));
         
         this.uiModes.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
-            statusTextureLabel: 'red', 
-            lights: [
-                {
-                                position: [0.6, 1.5, 2.0, 1.0],
-                                ambient: [0.21, 0.21, 0.21],
-                                diffuse: [0.6, 0.8, 0.45],
-                                specular: [0.0, 0.0, 0.0]
-                            },
-                            {
-                                            position: [-0.6, 1.5, 2.0, 1.0],
-                                            ambient: [0.21, 0.21, 0.21],
-                                            diffuse: [0.8, 0.6, 0.45],
-                                            specular: [0.0, 0.0, 0.0]
-                                        }
-            ],
+            statusTextureLabel: 'white', 
+            // lights: [
+            //     {
+            //                     position: [0.6, 1.5, 2.0, 1.0],
+            //                     ambient: [0.21, 0.21, 0.21],
+            //                     diffuse: [0.6, 0.8, 0.45],
+            //                     specular: [0.0, 0.0, 0.0]
+            //                 },
+            //                 {
+            //                                 position: [-0.6, 1.5, 2.0, 1.0],
+            //                                 ambient: [0.21, 0.21, 0.21],
+            //                                 diffuse: [0.8, 0.6, 0.45],
+            //                                 specular: [0.0, 0.0, 0.0]
+            //                             }
+            // ],
+            lights: [this.lightPool.dimAmbient, this.lightPool.brightWhiteFrontal, this.lightPool.dimYellowHighlight],
             enterFunction: function () {
                 var current = this.getElement('currentItem');
                 if (current.model) {
@@ -651,6 +663,8 @@ window.ExperimentalScene = (function () {
             'Index '+idx
         ]);
         
+        scene.showFractionComplete(0);
+        
         var progressUpdater = function (messageInf) {
             if (messageInf.status == 'progress' && messageInf.type == 'download') {
                 scene.showFractionComplete(0.5*messageInf.value);
@@ -725,7 +739,7 @@ window.ExperimentalScene = (function () {
             return [Math.cos(ang), Math.sin(ang)];
         }
         var siConfig = {
-            materialLabel:'matteplastic', label:'statusIndicator',
+            materialLabel:'matteplastic', texture: tex, label:'statusIndicator',
             samplerType: 'BeveledExtrudeSampler',
             shape: {
                 pointCount: 40, sampler: pacmanShapeSampler, parameters:{completion:1}
@@ -1128,6 +1142,22 @@ window.ExperimentalScene = (function () {
     }
     
 
+    Scene.prototype.showLights = function () {
+        var lamps = [];
+        for (var i=0; i<this.lights.length; i++) {
+            var myLight = this.lights[i];
+            if (!(myLight.diffuse && myLight.position)) continue;
+            var tex = this.addTextureFromColor({r:myLight.diffuse[0], g:myLight.diffuse[1], b:myLight.diffuse[2]});
+            var c = new FCShapes.SimpleCuboid(
+                {x:myLight.position[0], y:myLight.position[1], z:myLight.position[2]},
+                {w:0.3, h:0.3, d:0.3},
+                null, {texture:tex, shaderLabel:'basic', groupLabel:'lamps'}
+            );
+            lamps.push(c);
+            this.addObject(c);
+        }
+        return lamps;
+    }
 
 
     return Scene;
