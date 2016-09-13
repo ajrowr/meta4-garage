@@ -194,6 +194,15 @@ SelectGrid.prototype.getPlacementForGridPosition = function (gridIdx) {
 //
 // }
 
+SelectGrid.prototype._posToGridIndex = function (row, col) {
+    return (this.columns * row) + col; 
+}
+
+SelectGrid.prototype._gridIndexToPos = function (idx) {
+    idx -= this.currentRange.start;
+    return {row: Math.floor(idx/(this.columns-1)), column: idx%(this.columns-1)};
+}
+
 SelectGrid.prototype.moveSelectCaret = function (direction) {
 
     /* Deselect current */
@@ -205,20 +214,43 @@ SelectGrid.prototype.moveSelectCaret = function (direction) {
         currentSelection = this.gridItems[this.getSelectedIndex()];
     }
     if (currentSelection) currentSelection.interact('deselect');
-
+    
+    var pRow = this.selectCaret.row, pCol = this.selectCaret.column;
+    var nRow = this.selectCaret.row, nCol = this.selectCaret.column;
     switch (direction) {
     case 'UP':
-        this.selectCaret.row++;
+        nRow++;
         break;
     case 'DOWN':
-        this.selectCaret.row--;
+        nRow--;
         break;
     case 'LEFT':
-        this.selectCaret.column--;
+        nCol--;
         break;
     case 'RIGHT':
-        this.selectCaret.column++;
+        nCol++;
         break;
+    }
+    
+    var currentDataIndex = this.getDataIndexForGridIndex(this._posToGridIndex(pRow, pCol));
+    var newDataIndex = this.getDataIndexForGridIndex(this._posToGridIndex(nRow, nCol));
+    
+    /* If current pos is past end of data, shunt to end of data */
+    if (currentDataIndex >= this.dataItems.length) {
+        var q = this._gridIndexToPos(this.dataItems.length-1);
+        this.selectCaret.row = q.row;
+        this.selectCaret.column = q.column;
+    }
+    /* Prevent attempted move past end of data */
+    else if (newDataIndex >= this.dataItems.length) {
+        this.selectCaret.row = pRow;
+        this.selectCaret.column = pCol;
+    }
+    /* Everything normal, just move the caret */
+    else {
+        this.selectCaret.row = nRow;
+        this.selectCaret.column = nCol;
+        
     }
     
     

@@ -142,7 +142,13 @@ window.ExperimentalScene = (function () {
                  srcFragmentShader: 'ads_v1.fs'}
             ],
             meshes: [
-               {label: 'controller', src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj'}
+               // {label: 'controller', src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj'}
+               {label: 'controller_body', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/body.obj'},
+               {label: 'controller_button_menu', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/button.obj'},
+               {label: 'controller_button_sys', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/sys_button.obj'},
+               {label: 'controller_trigger', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/trigger.obj'},
+               {label: 'controller_grip_l', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/l_grip.obj'},
+               {label: 'controller_grip_r', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/r_grip.obj'}
             ],
             colors: [
                 {hex: '#00007f', label: 'navy'},
@@ -398,6 +404,13 @@ window.ExperimentalScene = (function () {
         
         // this.modelFolder = 'statuary';
         this.modelFolder = '';
+        this.startPageNumber = 0;
+        if (window.location.hash) {
+            var hashParts = window.location.hash.slice(1).split(':');
+            this.modelFolder = hashParts[0];
+            this.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
+            
+        }
         
         this.modelListUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=detail';
         this.modelPreviewUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=grade';
@@ -512,7 +525,7 @@ window.ExperimentalScene = (function () {
         }
         
         var myItems = grid.getDataForCurrentRange();
-        grid.setCaret();
+        if (!grid.specialSelection) grid.setCaret();
         for (var i=0; i<myItems.length; i++) {
             var myInf = myItems[i];
                 var previewUrl = scene.modelPreviewUrlFormat.replace('@@', myInf.name);
@@ -600,8 +613,9 @@ window.ExperimentalScene = (function () {
         
     }
     
-    Scene.prototype.showFolder = function (folder) {
+    Scene.prototype.showFolder = function (folder, page) {
         var scene = this;
+        if (!page) page = 0;
         // console.log(scene);
         return new Promise(function (resolve, reject) {
             console.log('Showing', folder);
@@ -618,7 +632,8 @@ window.ExperimentalScene = (function () {
             scene.loadModelList(folder)
             .then(function (remoteInf) {
                 scene.previewGrid.setData(remoteInf.files);
-                scene.updatePreviews(0, scene.uiLayout.grid.rows*scene.uiLayout.grid.columns);
+                var perPage = scene.uiLayout.grid.rows*scene.uiLayout.grid.columns;
+                scene.updatePreviews(page*perPage, perPage);
             
                 // scene.showFolderGrid(remoteInf.folders);
                 var dests = [];
@@ -987,7 +1002,7 @@ window.ExperimentalScene = (function () {
         /* configured to interact with a set of colliders, in this case the floorCollider, which has a callback */
         /* which receives info on the collisions that occur so that the cursor can be updated. */
         var ctrl0 = new FCShapes.MeshShape(
-            scene.meshes.controller,
+            scene.meshes.controller_body,
             _hidden_beneath_floor, /* Hide it under the floor. This position will be overridden */
             ctrlInfo.size,
             null,
@@ -1002,7 +1017,7 @@ window.ExperimentalScene = (function () {
         scene.addObject(ctrl0);
         
         var ctrl1 = new FCShapes.MeshShape(
-            scene.meshes.controller,
+            scene.meshes.controller_body,
             _hidden_beneath_floor, /* Hide it under the floor. This position will be overridden */
             ctrlInfo.size,
             null,
@@ -1035,7 +1050,7 @@ window.ExperimentalScene = (function () {
         });
         
         
-        scene.showFolder(scene.modelFolder)
+        scene.showFolder(scene.modelFolder, scene.startPageNumber)
         .then(function () {
             // scene.activeGrid = scene.folderGrid;
             scene.setUIMode(0);
@@ -1043,8 +1058,50 @@ window.ExperimentalScene = (function () {
         
         
         // scene.showStatusIndicator(scene.textures.white);
-        scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTexLabel])
+        scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTextureLabel]);
         
+        var t0 = FCUtil.makeGamepadTracker(scene, 0, null);
+        var t1 = FCUtil.makeGamepadTracker(scene, 1, null);
+        // var cc1 = new FCShapes.MeshShape(scene.meshes.controller_button_menu, null, null, null, {materialLabel:'matteplastic'});
+        // var cc2 = new FCShapes.MeshShape(scene.meshes.controller_button_sys, null, null, null, {materialLabel:'matteplastic'});
+        // var cc3 = new FCShapes.MeshShape(scene.meshes.controller_grip_l, null, null, null, {materialLabel:'matteplastic'});
+        // var cc4 = new FCShapes.MeshShape(scene.meshes.controller_grip_r, null, null, null, {materialLabel:'matteplastic'});
+        // var cc5 = new FCShapes.MeshShape(scene.meshes.controller_trigger, null, null, null, {materialLabel:'matteplastic'});
+        // cc1.behaviours.push(t0);
+        // cc2.behaviours.push(t0);
+        // cc3.behaviours.push(t0);
+        // cc4.behaviours.push(t0);
+        // cc5.behaviours.push(t0);
+        // scene.addObject(cc1);
+        // scene.addObject(cc2);
+        // scene.addObject(cc3);
+        // scene.addObject(cc4);
+        // scene.addObject(cc5);
+        
+        var controllerChromeItems = [
+            scene.meshes.controller_button_menu,
+            scene.meshes.controller_button_sys,
+            scene.meshes.controller_grip_l,
+            scene.meshes.controller_grip_r,
+            scene.meshes.controller_trigger,
+        ];
+        scene.addMeshObjectsWithBehaviour(controllerChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, t0);
+        
+        /* Maybe add a mechanism for scene behaviours? */
+        
+    }
+    
+    /* This is mainly for batch-adding controller chrome items. So it's not very sophisticated */
+    /* Note that because all the chrome items use a shared params object, changing it for one will change it for all! */
+    /* This may be a useful property or it may be just the opposite. */
+    Scene.prototype.addMeshObjectsWithBehaviour = function (meshes, params, behaviour) {
+        var scene = this;
+        for (var i=0; i<meshes.length; i++) {
+            var m = meshes[i];
+            var o = new FCShapes.MeshShape(m, null, null, null, params);
+            o.behaviours.push(behaviour);
+            scene.addObject(o);
+        }
     }
     
     Scene.prototype.setupPrereqs = function () {
