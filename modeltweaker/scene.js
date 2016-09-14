@@ -18,8 +18,17 @@ var DEG=360/(2*Math.PI);
 /* How do we want to use this? consider it fundamental to the construction? or add things to it after */
 /* Mainly want to use it for behaviours and interactions but ... mandate may expand */
 var ObjContainer = function (children, scene, params) {
-    this.children = children;
+    this.children = children || [];
     this.scene = scene;
+    var p = params || {};
+    this.inheritedMatrix = p.matrix;
+}
+
+ObjContainer.prototype.addChild = function (child) {
+    if (this.inheritedMatrix) {
+        child.inheritedMatrix = this.inheritedMatrix;
+    }
+    this.children.push(child);
 }
 
 ObjContainer.prototype.distribute = function (fn) {
@@ -1060,23 +1069,23 @@ window.ExperimentalScene = (function () {
         // scene.showStatusIndicator(scene.textures.white);
         scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTextureLabel]);
         
-        var t0 = FCUtil.makeGamepadTracker(scene, 0, null);
-        var t1 = FCUtil.makeGamepadTracker(scene, 1, null);
-        // var cc1 = new FCShapes.MeshShape(scene.meshes.controller_button_menu, null, null, null, {materialLabel:'matteplastic'});
-        // var cc2 = new FCShapes.MeshShape(scene.meshes.controller_button_sys, null, null, null, {materialLabel:'matteplastic'});
-        // var cc3 = new FCShapes.MeshShape(scene.meshes.controller_grip_l, null, null, null, {materialLabel:'matteplastic'});
-        // var cc4 = new FCShapes.MeshShape(scene.meshes.controller_grip_r, null, null, null, {materialLabel:'matteplastic'});
-        // var cc5 = new FCShapes.MeshShape(scene.meshes.controller_trigger, null, null, null, {materialLabel:'matteplastic'});
-        // cc1.behaviours.push(t0);
-        // cc2.behaviours.push(t0);
-        // cc3.behaviours.push(t0);
-        // cc4.behaviours.push(t0);
-        // cc5.behaviours.push(t0);
-        // scene.addObject(cc1);
-        // scene.addObject(cc2);
-        // scene.addObject(cc3);
-        // scene.addObject(cc4);
-        // scene.addObject(cc5);
+        /* A gamepadTracker is just a behaviour function bound to a specific controller and with an optional */
+        /* button handler. Since they are stateless and get given everything they need on every call, they are */
+        /* reusable (as long as there's no button handler!) */
+        /* So for convenience we add a pair of generic ones for all the things that want to track controller. */
+        scene.t0 = FCUtil.makeGamepadTracker(scene, 0, null);
+        scene.t1 = FCUtil.makeGamepadTracker(scene, 1, null);
+        
+        /* TODO I really want to be able to make text track controllers plz!! */
+        /* ... easier said than done tho ... */
+        /* You'll need to either attach the behaviour to all the glyphs, or fially get around to having */
+        /* an inheritedMatrix handled by a containers. */
+        /* The latter would be preferable, having to attach behaviours to all glyphs could have performance */
+        /* cost but inherited matrixes on the group would actually be useful */
+        
+        /* OK we've got matriculated containers now, that's nice. */
+        /* but there's still more to do ... */
+        /* */
         
         var controllerChromeItems = [
             scene.meshes.controller_button_menu,
@@ -1085,7 +1094,7 @@ window.ExperimentalScene = (function () {
             scene.meshes.controller_grip_r,
             scene.meshes.controller_trigger,
         ];
-        scene.addMeshObjectsWithBehaviour(controllerChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, t0);
+        scene.addMeshObjectsWithBehaviour(controllerChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, scene.t0);
         
         /* Maybe add a mechanism for scene behaviours? */
         
@@ -1161,6 +1170,7 @@ window.ExperimentalScene = (function () {
         return new Promise(function (resolve, reject) {
             var glyphPromises = [];
             var xOffset = 0;
+            var newContainer = new ObjContainer(null, scene, {matrix:mat});
             for (var i=0; i<textStr.length; i++) {
                 var glyph;
                 /* If it's a space, make an empty promise and then catch that on the other side */
@@ -1186,13 +1196,16 @@ window.ExperimentalScene = (function () {
                     var meshInfo = FCMeshTools.analyseMesh(mesh);
                     glyph = new FCShapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
                                 {materialLabel:materialLabel, groupLabel:groupLabel, textureLabel: textureLabel});
-                    glyph.inheritedMatrix = mat;
-                    scene.addObject(glyph);
+                    // glyph.inheritedMatrix = mat;
+                    newContainer.addChild(glyph);
+                    // scene.addObject(glyph);
                     glyphobjs.push(glyph);
                     xOffset += meshInfo.maxX*1.2*scale;
             
                 }
-                resolve(new ObjContainer(glyphobjs, scene));
+                scene.addObjects(newContainer.children); /* TODO ? */
+                resolve(newContainer);
+                // resolve(new ObjContainer(glyphobjs, scene));
             });
             
         })
