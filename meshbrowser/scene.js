@@ -152,12 +152,13 @@ window.ExperimentalScene = (function () {
             ],
             meshes: [
                // {label: 'controller', src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj'}
-               {label: 'controller_body', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/body.obj'},
-               {label: 'controller_button_menu', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/button.obj'},
-               {label: 'controller_button_sys', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/sys_button.obj'},
-               {label: 'controller_trigger', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/trigger.obj'},
-               {label: 'controller_grip_l', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/l_grip.obj'},
-               {label: 'controller_grip_r', src: '/assets/mesh/sys/vive/controller/vr_controller_lowpoly/r_grip.obj'}
+               {label: 'controller_body', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/body.obj'},
+               {label: 'controller_button_menu', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/button.obj'},
+               {label: 'controller_button_sys', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/sys_button.obj'},
+               {label: 'controller_trigger', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/trigger.obj'},
+               {label: 'controller_trackpad', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/trackpad.obj'},
+               {label: 'controller_grip_l', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/l_grip.obj'},
+               {label: 'controller_grip_r', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/r_grip.obj'}
             ],
             colors: [
                 {hex: '#00007f', label: 'navy'},
@@ -1041,14 +1042,16 @@ window.ExperimentalScene = (function () {
         /* but there's still more to do ... */
         /* */
         
-        var controllerChromeItems = [
+        var controller1ChromeItems = [
             scene.meshes.controller_button_menu,
             scene.meshes.controller_button_sys,
             scene.meshes.controller_grip_l,
             scene.meshes.controller_grip_r,
             scene.meshes.controller_trigger,
         ];
-        scene.addMeshObjectsWithBehaviour(controllerChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, scene.t0);
+        var controller2ChromeItems = controller1ChromeItems.concat([scene.meshes.controller_trackpad]);
+        scene.addMeshObjectsWithBehaviour(controller1ChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, scene.t0);
+        scene.addMeshObjectsWithBehaviour(controller2ChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, scene.t1);
         
         /* Maybe add a mechanism for scene behaviours? */
         
