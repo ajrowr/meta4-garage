@@ -437,13 +437,11 @@ window.ExperimentalScene = (function () {
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
-
-    Scene.prototype.updateHash = function () {
-        window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
-    }
-        
+    
+    /*_ Content handling _*/
+    
     /* Grids will be constructed once each and then re-used for different content */
-    Scene.prototype.buildPreviewGrid = function (X) {
+    Scene.prototype.buildPreviewGrid = function () {
         var scene = this;
         var layout = scene.uiLayout;
         var prevIdx = 0;
@@ -506,7 +504,7 @@ window.ExperimentalScene = (function () {
         
     }
     
-    Scene.prototype.buildFolderGrid = function (X) {
+    Scene.prototype.buildFolderGrid = function () {
         var scene = this;
         var layout = scene.uiLayout;
         /* Configure grid */
@@ -745,7 +743,11 @@ window.ExperimentalScene = (function () {
     }
     
     /*_ Controller & low-level UIX _*/
-    
+
+    Scene.prototype.updateHash = function () {
+        window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
+    }
+        
     Scene.prototype.showMenu = function () {
         
         
@@ -864,6 +866,7 @@ window.ExperimentalScene = (function () {
         }
     }
     
+    /* Buttons are - 0: trackpad, 1: trigger 2: grip, 3: menu */
     Scene.prototype.makeButtonHandler = function () {
         var scene = this;
         var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
@@ -885,64 +888,7 @@ window.ExperimentalScene = (function () {
         };
         return buttonHandler;
     }
-    
-    Scene.prototype.makeButtonHandler_v1 = function () {
-        var scene = this;
-        /* Button handler for the controllers. The default button handler does 2 things: */
-        /* 1). teleport to cursor location when grip button is pressed */
-        /* 2). Output button status info when any button is pressed */
-        /* Buttons are - 0: trackpad, 1: trigger 2: grip, 3: menu */
-        var buttonHandler = function (gamepadIdx, btnIdx, btnStatus, sector, myButton, extra) {
-            if (btnStatus != 'up') {
-                // console.log('Button idx', btnIdx, 'on controller', gamepadIdx, 'was', btnStatus);
-                
-                if (btnIdx == '0') {
-                    var tpMode = scene.uiModes[scene.uiMode].mode;
-                    if (sector == 'center' && btnStatus == 'released') {
-                        scene.setUIMode(null);
-                        return;
-                    }
-                    switch (tpMode) {
-                    /* redacted */
-                    case 'MODE_OBJ_ROT_JERK':
-                        if (sector == 'n' && btnStatus == 'released') {
-                            scene.currentObject.orientation.x -= 15/DEG;
-                        }
-                        else if (sector == 's' && btnStatus == 'released') {
-                            scene.currentObject.orientation.x += 15/DEG;
-                        }
-                        else if (sector == 'w' && btnStatus == 'released') {
-                            scene.currentObject.orientation.z += 15/DEG;
-                        }
-                        else if (sector == 'e' && btnStatus == 'released') {
-                            scene.currentObject.orientation.z -= 15/DEG;
-                        }
-                        break;
-                    case 'MODE_OBJ_FIX':
-                        /* Apply a hard transform to the mesh */
-                        if (sector == 'n' && btnStatus == 'released') {
-                            scene.showMessage(['Reloading mesh with transforms...']);
-                            scene.loadModelAtIndex(scene.currentModelIdx, {turn:true});
-                        }
-                        /* Force synth of mesh normals */
-                        else if (sector == 's' && btnStatus == 'released') {
-                            scene.showMessage(['Reloading mesh with synthetic normals...']);
-                            scene.loadModelAtIndex(scene.currentModelIdx, {synthNormals: true});
-                        }
-                        /* Wireframe mode */
-                        else if (sector == 'w' && btnStatus == 'released') {
-                            scene.currentObject.drawMode = 1;
-                        }
-                        break;
-                    }
-                    
-                }
-                /* redacted */
-            }
-        };
-        return buttonHandler;
-    }
-    
+        
     /*_ Scene init _*/
     
     Scene.prototype.setupScene = function () {
@@ -1107,24 +1053,7 @@ window.ExperimentalScene = (function () {
         /* Maybe add a mechanism for scene behaviours? */
         
     }
-    
-    /* This is mainly for batch-adding controller chrome items. So it's not very sophisticated */
-    /* Note that because all the chrome items use a shared params object, changing it for one will change it for all! */
-    /* This may be a useful property or it may be just the opposite. */
-    Scene.prototype.addMeshObjectsWithBehaviour = function (meshes, params, behaviour) {
-        var scene = this;
-        for (var i=0; i<meshes.length; i++) {
-            var m = meshes[i];
-            var o = new FCShapes.MeshShape(m, null, null, null, params);
-            o.behaviours.push(behaviour);
-            scene.addObject(o);
-        }
-    }
-    
-    Scene.prototype.setupPrereqs = function () {
-        return new Promise(function (resolve, reject) {resolve();})
-    }
-    
+        
     /*_ Text handling stuff _*/
     
     Scene.prototype.showMessage = function (texts) {
@@ -1140,23 +1069,6 @@ window.ExperimentalScene = (function () {
             }
             scene.displayBoard = newBoard;
             scene.addObject(newBoard);
-        })
-    }
-    
-    Scene.prototype._fetchMeshViaCache = function (meshPath) {
-        var scene = this;
-        return new Promise(function (resolve, reject) {
-            if (scene._meshCache[meshPath]) {
-                resolve(scene._meshCache[meshPath]);
-            }
-            else {
-                FCShapeUtils.loadMesh(meshPath)
-                .then(function (mesh) {
-                    scene._meshCache[meshPath] = mesh;
-                    resolve(mesh);
-                });
-            }
-            
         })
     }
     
@@ -1220,6 +1132,9 @@ window.ExperimentalScene = (function () {
     }
     
 
+    /*_ Utils _*/
+    
+    /* Helpful for debugging lights */
     Scene.prototype.showLights = function () {
         var lamps = [];
         this.removeObjectsInGroup('lamps');
@@ -1237,7 +1152,38 @@ window.ExperimentalScene = (function () {
         }
         return lamps;
     }
-
+    
+    /* This is mainly for batch-adding controller chrome items. So it's not very sophisticated */
+    /* Note that because all the chrome items use a shared params object, changing it for one will change it for all! */
+    /* This may be a useful property or it may be just the opposite. */
+    Scene.prototype.addMeshObjectsWithBehaviour = function (meshes, params, behaviour) {
+        var scene = this;
+        for (var i=0; i<meshes.length; i++) {
+            var m = meshes[i];
+            var o = new FCShapes.MeshShape(m, null, null, null, params);
+            o.behaviours.push(behaviour);
+            scene.addObject(o);
+        }
+    }
+    
+    Scene.prototype._fetchMeshViaCache = function (meshPath) {
+        var scene = this;
+        return new Promise(function (resolve, reject) {
+            if (scene._meshCache[meshPath]) {
+                resolve(scene._meshCache[meshPath]);
+            }
+            else {
+                FCShapeUtils.loadMesh(meshPath)
+                .then(function (mesh) {
+                    scene._meshCache[meshPath] = mesh;
+                    resolve(mesh);
+                });
+            }
+            
+        })
+    }
+    
+    
 
     return Scene;
 })();
