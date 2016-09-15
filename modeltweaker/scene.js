@@ -370,6 +370,9 @@ window.ExperimentalScene = (function () {
                 itemDisplay: {
                     pos: {x:0, y:0, z:0},
                     scale: 0.9
+                },
+                text: {
+                    orientation: {x:0, y:0, z:0}
                 }
             },
             LAYOUT_DESK: {
@@ -400,7 +403,7 @@ window.ExperimentalScene = (function () {
                     scale: 0.6
                 },
                 text: {
-                    orientation: {x:90/DEG, y:0, z:180/DEG}
+                    orientation: {x:0, y:180/DEG, z:0}
                 }
             }
         };
@@ -590,7 +593,7 @@ window.ExperimentalScene = (function () {
         grid.setRange(rangeStart, rangeEnd);
         
         /* Remove existing */
-        /* TODO I'm not really happy with this, I'd like to remove the containers rather than the individual glyphs */
+        /* TODO I'm not really happy with this, I'd like to be able to remove the containers rather than the individual glyphs */
         var glyphs = scene.getObjectsInGroup('folderlist');
         for (var i=0; i<glyphs.length; i++) {
             scene.removeObject(glyphs[i]);
@@ -601,12 +604,10 @@ window.ExperimentalScene = (function () {
         for (var i=0; i<myFolders.length; i++) {
             var myFolder = myFolders[i];
             var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
-            console.log(myInf);
-            // var textCluster;
             var exec = function (inf, idx) {
                 scene.addText(
                     inf.folder.label, inf.placement.location, 
-                    {x:0, y:180/DEG , z:0}, 
+                    scene.uiLayout.text.orientation,
                     {groupLabel:'folderlist', scale: 0.4}
                 )
                 .then(function (cluster) {
@@ -1221,6 +1222,7 @@ window.ExperimentalScene = (function () {
 
     Scene.prototype.showLights = function () {
         var lamps = [];
+        this.removeObjectsInGroup('lamps');
         for (var i=0; i<this.lights.length; i++) {
             var myLight = this.lights[i];
             if (!(myLight.diffuse && myLight.position)) continue;
