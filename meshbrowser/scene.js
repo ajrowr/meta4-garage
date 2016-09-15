@@ -633,7 +633,7 @@ window.ExperimentalScene = (function () {
         if (!page) page = 0;
         // console.log(scene);
         return new Promise(function (resolve, reject) {
-            console.log('Showing', folder);
+            console.log('Showing folder', folder);
             /* Grid construction - NB this will be done in scene setup */
             if (!scene.previewGrid) scene.buildPreviewGrid();
             if (!scene.folderGrid) scene.buildFolderGrid();
@@ -653,7 +653,7 @@ window.ExperimentalScene = (function () {
             
                 // scene.showFolderGrid(remoteInf.folders);
                 var dests = [];
-                console.log(remoteInf);
+                // console.log(remoteInf);
                 if (remoteInf.parent) {
                     dests.push(remoteInf.parent);
                 }
@@ -734,7 +734,7 @@ window.ExperimentalScene = (function () {
             xh.responseType = 'json';
             xh.onreadystatechange = function () {
                 if (xh.readyState == 4) {
-                    console.log(xh.response);
+                    // console.log(xh.response);
                     scene.modelList = xh.response;
                     resolve(xh.response);
                 }

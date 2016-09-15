@@ -141,7 +141,6 @@ SelectGrid.prototype.setCaret = function (r, c) {
     this.selectCaret.row = r;
     this.selectCaret.column = c;
     var item = this.getSelectedItem();
-    console.log(item);
     if (this.hasFocus && item.display && item.display.interact) item.display.interact('select');
 }
 
