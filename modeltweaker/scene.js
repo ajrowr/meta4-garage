@@ -434,7 +434,11 @@ window.ExperimentalScene = (function () {
     }
     
     Scene.prototype = Object.create(FCScene.prototype);
-    
+
+    Scene.prototype.updateHash = function () {
+        window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
+    }
+        
     /* Grids will be constructed once each and then re-used for different content */
     Scene.prototype.buildPreviewGrid = function (X) {
         var scene = this;
@@ -525,6 +529,7 @@ window.ExperimentalScene = (function () {
         else grid.specialItems.PAGE_LEFT.hidden = false;
         if (grid.currentRange.isEnd) grid.specialItems.PAGE_RIGHT.hidden = true;
         else grid.specialItems.PAGE_RIGHT.hidden = false;
+        scene.updateHash();
         
         /* TODO remove items from scene.previews when changing */
         /* TODO consider caching preview meshes */
@@ -601,7 +606,7 @@ window.ExperimentalScene = (function () {
             var exec = function (inf, idx) {
                 scene.addText(
                     inf.folder.label, inf.placement.location, 
-                    {x:90/DEG, y:0, z:180/DEG}, 
+                    {x:0, y:180/DEG , z:0}, 
                     {groupLabel:'folderlist', scale: 0.4}
                 )
                 .then(function (cluster) {
@@ -640,6 +645,7 @@ window.ExperimentalScene = (function () {
             // var scene = this;
             scene.loadModelList(folder)
             .then(function (remoteInf) {
+                scene.modelFolder = folder;
                 scene.previewGrid.setData(remoteInf.files);
                 var perPage = scene.uiLayout.grid.rows*scene.uiLayout.grid.columns;
                 scene.updatePreviews(page*perPage, perPage);
@@ -656,6 +662,7 @@ window.ExperimentalScene = (function () {
                 // scene.activeGrid = scene.previewGrid;
             
                 // scene.showPreviews(remoteInf.files);
+                scene.updateHash();
                 resolve();
             })
             

@@ -39,6 +39,9 @@ var SelectGrid = function (params) {
     
     this.hasFocus = null;
     
+    this.currentPage = null;
+    this.perPage = this.rows * this.columns;
+    
 }
 
 SelectGrid.prototype.setDisplayItemAtIndex = function (dispItem, idx) {
@@ -59,7 +62,16 @@ SelectGrid.prototype.setRange = function (rStart, rLength) {
     range.isEnd = range.end == this.dataItems.length;
     this.currentRange = range;
     this._arrangingIdx = 0;
+    this.currentPage = this._getPageFromRange(this.currentRange.start);
     return this.currentRange;
+}
+
+SelectGrid.prototype._getPageFromRange = function (rangeStart) {
+    return Math.floor(rangeStart / (this.perPage));
+}
+
+SelectGrid.prototype.setPage = function (pageIdx) {
+    
 }
 
 SelectGrid.prototype.changePage = function (rel) {
@@ -194,13 +206,22 @@ SelectGrid.prototype.getPlacementForGridPosition = function (gridIdx) {
 //
 // }
 
+/* TODO need to align this language. */
+/* grid pos is the row,col in the visible grid */
+/* display index is grid pos mapped to an index on the visible display. */
+/* data index is an index into the underlying data. */
+
 SelectGrid.prototype._posToGridIndex = function (row, col) {
     return (this.columns * row) + col; 
 }
 
-SelectGrid.prototype._gridIndexToPos = function (idx) {
+SelectGrid.prototype._dataIndexToPos = function (idx) {
     idx -= this.currentRange.start;
-    return {row: Math.floor(idx/(this.columns-1)), column: idx%(this.columns-1)};
+    return {row: Math.floor(idx/(this.columns)), column: idx%(this.columns)};
+}
+
+SelectGrid.prototype._displayIndexToPos = function (idx) {
+    return {row: Math.floor(idx/(this.columns)), column: idx%(this.columns)};
 }
 
 SelectGrid.prototype.moveSelectCaret = function (direction) {
@@ -237,7 +258,7 @@ SelectGrid.prototype.moveSelectCaret = function (direction) {
     
     /* If current pos is past end of data, shunt to end of data */
     if (currentDataIndex >= this.dataItems.length) {
-        var q = this._gridIndexToPos(this.dataItems.length-1);
+        var q = this._dataIndexToPos(this.dataItems.length-1);
         this.selectCaret.row = q.row;
         this.selectCaret.column = q.column;
     }
