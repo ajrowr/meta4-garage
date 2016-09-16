@@ -418,12 +418,6 @@ window.ExperimentalScene = (function () {
         // this.modelFolder = 'statuary';
         this.modelFolder = '';
         this.startPageNumber = 0;
-        if (window.location.hash) {
-            var hashParts = window.location.hash.slice(1).split(':');
-            this.modelFolder = hashParts[0];
-            this.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
-            
-        }
         
         this.modelListUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=detail';
         this.modelPreviewUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=grade';
@@ -746,7 +740,7 @@ window.ExperimentalScene = (function () {
     /*_ Controller & low-level UIX _*/
 
     Scene.prototype.updateHash = function () {
-        window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
+        this.window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
     }
         
     Scene.prototype.showMenu = function () {
@@ -1011,15 +1005,7 @@ window.ExperimentalScene = (function () {
             scene.currentItem.model = glyph;
             scene.currentItem.idx = -1;
             scene.addObject(glyph);
-        });
-        
-        
-        scene.showFolder(scene.modelFolder, scene.startPageNumber)
-        .then(function () {
-            // scene.activeGrid = scene.folderGrid;
-            scene.setUIMode(0);
-        })
-        
+        });        
         
         // scene.showStatusIndicator(scene.textures.white);
         scene.showStatusIndicator(scene.textures[scene.uiModes[scene.uiMode].statusTextureLabel]);
@@ -1054,7 +1040,44 @@ window.ExperimentalScene = (function () {
         scene.addMeshObjectsWithBehaviour(controller2ChromeItems, {materialLabel:'matteplastic', groupLabel:'controllerChrome'}, scene.t1);
         
         /* Maybe add a mechanism for scene behaviours? */
+        /* Would be useful for eg button handling, attaching button handlers to a controller is fine and intuitive but */
+        /* doesn't actually make a lot of structural sense */
         
+        /* Since the Meta4 site runs these apps inside of iframes, we may very well be trapped inside of one. */
+        /* If so, we rely on the outer frame to facilitate access to the window object so that we can bypass the DOM security model */
+        /* and get read/write access to the document hash. The outer frame does this by injecting a function called getOuterWindow */
+        /* into our frame's window object but this doesn't happen until our frame is loaded. So we spinlock on quarter-second */
+        /* intervals until we see it, and then we process the location hash. */
+        var getTopLevelWindow = function () {
+            return new Promise(function (resolve, reject) {
+                var inf = {};
+                if (window.self == window.top) resolve(window);
+                else {
+                    inf.idx = window.setInterval(function () {
+                        if (window.getOuterWindow) {
+                            window.clearInterval(inf.idx);
+                            resolve(window.getOuterWindow());
+                        }
+                    }, 250);
+                }
+            });
+        }
+        
+        getTopLevelWindow()
+        .then(function (w) {
+            scene.window = w;
+            if (w && w.location.hash) {
+                var hashParts = w.location.hash.slice(1).split(':');
+                scene.modelFolder = hashParts[0];
+                scene.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
+            }
+            scene.showFolder(scene.modelFolder, scene.startPageNumber)
+            .then(function () {
+                scene.setUIMode(0);
+            });
+            
+        });
+
     }
         
     /*_ Text handling stuff _*/
