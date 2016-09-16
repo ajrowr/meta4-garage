@@ -346,6 +346,7 @@ window.ExperimentalScene = (function () {
         
         this.uiLayouts = {
             LAYOUT_STANDING: {
+                label: 'LAYOUT_STANDING',
                 grid: {
                     rows: 4,
                     columns: 8,
@@ -377,6 +378,7 @@ window.ExperimentalScene = (function () {
                 }
             },
             LAYOUT_DESK: {
+                label: 'LAYOUT_DESK',
                 grid: {
                     rows: 3,
                     columns: 6,
@@ -739,8 +741,35 @@ window.ExperimentalScene = (function () {
     
     /*_ Controller & low-level UIX _*/
 
+    Scene.prototype._interpretUrlHash = function (hash) {
+        var hinf = {};
+        var hashParts = hash.slice(1).split(':');
+        hinf.modelFolder = hashParts[0];
+        hinf.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
+        return hinf;
+    }
+    
+    Scene.prototype._interpretUrlHash2 = function (hash) {
+        var hinf = {};
+        var hashParts = hash.slice(1).split('&');
+        for (var i = 0; i < hashParts.length; i++) {
+            var bits = hashParts[i].split('=');
+            hinf[bits[0]] = bits[1];
+        }
+        return hinf;
+    }
+    
+    Scene.prototype._generateUrlHash = function () {
+        return '#l='+this.uiLayout.label+'&' +
+                'f='+this.modelFolder+'&' +
+                'p='+this.previewGrid.currentPage;
+    }
+    
     Scene.prototype.updateHash = function () {
-        this.window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
+        // this.window.location.hash = '#' + this.modelFolder + ':' + this.previewGrid.currentPage;
+        // console.log(this._generateUrlHash());
+        // console.log(this._interpretUrlHash2(this._generateUrlHash()));
+        this.window.location.hash = this._generateUrlHash();
     }
         
     Scene.prototype.showMenu = function () {
@@ -1067,9 +1096,13 @@ window.ExperimentalScene = (function () {
         .then(function (w) {
             scene.window = w;
             if (w && w.location.hash) {
-                var hashParts = w.location.hash.slice(1).split(':');
-                scene.modelFolder = hashParts[0];
-                scene.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
+                var hinf = scene._interpretUrlHash2(w.location.hash);
+                // var hashParts = w.location.hash.slice(1).split(':');
+                // scene.modelFolder = hashParts[0];
+                // scene.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
+                scene.modelFolder = hinf.f || '';
+                scene.startPageNumber = hinf.p || 0;
+                scene.uiLayout = scene.uiLayouts[hinf.l] || scene.uiLayouts.LAYOUT_STANDING;
             }
             scene.showFolder(scene.modelFolder, scene.startPageNumber)
             .then(function () {
