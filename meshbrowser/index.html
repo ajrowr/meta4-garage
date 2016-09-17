@@ -29,8 +29,8 @@
                 <input type="text" id="readoutD"><br>
                 <input type="text" id="readoutE"><br>
             </div> -->
-            <a href="#l=LAYOUT_DESK" onclick="getOuterWindow().location.hash='#l=LAYOUT_DESK';window.location.reload();">Desk Mode</a><br/>
-            <a href="#l=LAYOUT_STANDING" onclick="getOuterWindow().location.hash='#l=LAYOUT_STANDING';window.location.reload();">Standing Mode</a>
+            <a href="#l=LAYOUT_DESK" onclick="(window.getOuterWindow && getOuterWindow() || window).location.hash='#l=LAYOUT_DESK';window.location.reload();">Desk Mode</a><br/>
+            <a href="#l=LAYOUT_STANDING" onclick="(window.getOuterWindow && getOuterWindow() || window).location.hash='#l=LAYOUT_STANDING';window.location.reload();">Standing Mode</a>
         </div>
         
         <script>

@@ -600,8 +600,16 @@ window.ExperimentalScene = (function () {
             var myFolder = myFolders[i];
             var myInf = {folder: myFolders[i], idx: i, placement: grid.getPlacementForGridPosition(i)};
             var exec = function (inf, idx) {
+                var loc = inf.placement.location;
+                if (scene.uiLayout.text.offset) {
+                    var offset = scene.uiLayout.text.offset;
+                    loc.x += (offset.x || 0);
+                    loc.y += (offset.y || 0);
+                    loc.z += (offset.z || 0);
+                    
+                }
                 scene.addText(
-                    inf.folder.label, inf.placement.location, 
+                    inf.folder.label, loc, 
                     scene.uiLayout.text.orientation,
                     {groupLabel:'folderlist', scale: 0.4}
                 )
