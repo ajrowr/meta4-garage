@@ -345,20 +345,20 @@ window.ExperimentalScene = (function () {
         
         
         this.uiLayouts = {
-            LAYOUT_STANDING: {
-                label: 'LAYOUT_STANDING',
-                grid: {
-                    rows: 4,
-                    columns: 8,
-                    previewScale: 0.25,
-                    rowHeight: 0.6,
-                    offsetZ: function (sp) {return -0.3*sp.sizeZ;},
-                    ellipseScale: {width:1.3, depth:-0.6},
-                    itemPosition: function (sp, perRow, idxInRow) {return Math.PI+(((Math.PI)/grid.perRow) * idxInRow);},
-                    itemOrientation: function (sp, idxInRow) {}
-                },
-                arrowDisposition: function (sp) {
-                    return {
+            LAYOUT_STANDING: function (sp) {
+                return {
+                    label: 'LAYOUT_STANDING',
+                    grid: {
+                        rows: 4,
+                        columns: 8,
+                        previewScale: 0.25,
+                        rowHeight: 0.6,
+                        offsetZ: -0.3*sp.sizeZ,
+                        ellipseScale: {width:1.3, depth:-0.6},
+                        itemPosition: function (perRow, idxInRow) {return Math.PI+(((Math.PI)/perRow) * idxInRow);},
+                        itemOrientation: function (idxInRow) {}
+                    },
+                    arrowDisposition: {
                         L: {
                             pos: {x:-0.6*sp.sizeX, y:1.3, z:-0.3*sp.sizeZ},
                             ori: {x:0.5*Math.PI, y:Math.PI, z:0}
@@ -367,30 +367,32 @@ window.ExperimentalScene = (function () {
                             pos: {x:0.6*sp.sizeX, y:1.3, z:-0.3*sp.sizeZ},
                             ori: {x:0.5*Math.PI, y:0, z:0}
                         }
+                    },
+                    itemDisplay: {
+                        pos: {x:0, y:0, z:0},
+                        scale: 0.9
+                    },
+                    text: {
+                        orientation: {x:0, y:0, z:0},
+                        offset: {x:-0.9*sp.sizeX, y:0, z:0.5}
                     }
-                },
-                itemDisplay: {
-                    pos: {x:0, y:0, z:0},
-                    scale: 0.9
-                },
-                text: {
-                    orientation: {x:0, y:0, z:0}
+                    
                 }
             },
-            LAYOUT_DESK: {
-                label: 'LAYOUT_DESK',
-                grid: {
-                    rows: 3,
-                    columns: 6,
-                    previewScale: 0.35,
-                    rowHeight: 0.9,
-                    offsetZ: function (sp) {return 1.3*sp.sizeZ;},
-                    ellipseScale: {width:1.3, depth:0.6},
-                    itemPosition: function (sp, perRow, idxInRow) {return ((Math.PI)/perRow) * idxInRow;},
-                    itemOrientation: function (sp, idxInRow) {}
-                },
-                arrowDisposition: function (sp) {
-                    return {
+            LAYOUT_DESK: function (sp) {
+                return {
+                    label: 'LAYOUT_DESK',
+                    grid: {
+                        rows: 3,
+                        columns: 6,
+                        previewScale: 0.35,
+                        rowHeight: 0.9,
+                        offsetZ: 1.3*sp.sizeZ,
+                        ellipseScale: {width:1.3, depth:0.6},
+                        itemPosition: function (perRow, idxInRow) {return ((Math.PI)/perRow) * idxInRow;},
+                        itemOrientation: function (idxInRow) {}
+                    },
+                    arrowDisposition: {
                         R: {
                             pos: {x:-0.6*sp.sizeX, y:1.3, z:1.3*sp.sizeZ},
                             ori: {x:0.5*Math.PI, y:Math.PI, z:0}
@@ -399,18 +401,23 @@ window.ExperimentalScene = (function () {
                             pos: {x:0.6*sp.sizeX, y:1.3, z:1.3*sp.sizeZ},
                             ori: {x:0.5*Math.PI, y:0, z:0}
                         }
+                    },
+                    itemDisplay: {
+                        pos: {x:0, y:0, z:2.5},
+                        scale: 0.6
+                    },
+                    text: {
+                        orientation: {x:0, y:180/DEG, z:0}
                     }
-                },
-                itemDisplay: {
-                    pos: {x:0, y:0, z:2.5},
-                    scale: 0.6
-                },
-                text: {
-                    orientation: {x:0, y:180/DEG, z:0}
+                    
                 }
             }
         };
-        this.uiLayout = this.uiLayouts.LAYOUT_DESK;
+        // this.uiLayout = this.uiLayouts.LAYOUT_DESK;
+        
+        /* The layout will be build once the stage params are available, ie. in setupScene(), the results will be put in this.uiLayout */
+        this.uiLayout = null;
+        this.uiLayoutLabel = 'LAYOUT_DESK';
         
         this.previews = [];
         this.previewIdx = 0;
@@ -449,7 +456,7 @@ window.ExperimentalScene = (function () {
             {rowHeight: layout.grid.rowHeight, perRow: layout.grid.columns,
                 rows: layout.grid.rows, columns: layout.grid.columns, 
                 ellipseScale: layout.grid.ellipseScale,
-             offset:{z:layout.grid.offsetZ(scene.stageParams)}}
+             offset:{z:layout.grid.offsetZ}}
         );
         
         var arrowSize = {height: 0.1, scale:0.2};
@@ -473,7 +480,7 @@ window.ExperimentalScene = (function () {
             return arrowActivate;
         };
         
-        var arrowDisp = scene.uiLayout.arrowDisposition(scene.stageParams);
+        var arrowDisp = scene.uiLayout.arrowDisposition;
         
         var arrowLeft = new FCShapes.LatheExtruderShape(
             arrowDisp.L.pos, arrowSize, arrowDisp.L.ori, 
@@ -508,7 +515,7 @@ window.ExperimentalScene = (function () {
         var grid = new SelectGrid({
             rowHeight: 0.25, perRow: 1,
             rows: 10, columns: 1, 
-            offset: {z:layout.grid.offsetZ(scene.stageParams)-0.35, y:0.3}
+            offset: {z:layout.grid.offsetZ-0.35, y:0.3}
         });
         
         scene.folderGrid = grid;
@@ -1110,7 +1117,9 @@ window.ExperimentalScene = (function () {
                 // scene.startPageNumber = hashParts[1] && Number(hashParts[1]) || 0;
                 scene.modelFolder = hinf.f || '';
                 scene.startPageNumber = hinf.p || 0;
-                scene.uiLayout = scene.uiLayouts[hinf.l] || scene.uiLayouts.LAYOUT_STANDING;
+                // scene.uiLayout = scene.uiLayouts[hinf.l] || scene.uiLayouts.LAYOUT_STANDING;
+                var layoutMaker = scene.uiLayouts[hinf.l] || scene.uiLayouts[scene.uiLayoutLabel];
+                scene.uiLayout = layoutMaker(scene.stageParams);
             }
             scene.showFolder(scene.modelFolder, scene.startPageNumber)
             .then(function () {
