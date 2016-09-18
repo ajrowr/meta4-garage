@@ -269,10 +269,12 @@ window.ExperimentalScene = (function () {
                 this.getElement('folderGrid').focus();
                 this.scene.lights = this.lights;
                 this.scene.updateLighting();
+                this.scene.showStatusGlyph(0xf115);
             },
             exitFunction: function () {
                 this.getElement('folderGrid').setVisible(false);
                 this.getElement('folderGrid').blur();
+                this.scene.showStatusGlyph(null);
             }
         }));
         
@@ -291,6 +293,7 @@ window.ExperimentalScene = (function () {
                 this.getElement('previewGrid').focus();
                 this.scene.lights = this.lights;
                 this.scene.updateLighting();
+                this.scene.showStatusGlyph(0xf00a);
             },
             exitFunction: function () {
                 var current = this.getElement('currentItem');
@@ -298,25 +301,12 @@ window.ExperimentalScene = (function () {
                     current.model.hidden = true;
                 }
                 this.getElement('previewGrid').blur();
+                this.scene.showStatusGlyph(null);
             }
         }));
         
         this.uiModes.push(new AppMode(this, 'MODE_OBJ_ROT_SCALE', {
-            statusTextureLabel: 'white', 
-            // lights: [
-            //     {
-            //                     position: [0.6, 1.5, 2.0, 1.0],
-            //                     ambient: [0.21, 0.21, 0.21],
-            //                     diffuse: [0.6, 0.8, 0.45],
-            //                     specular: [0.0, 0.0, 0.0]
-            //                 },
-            //                 {
-            //                                 position: [-0.6, 1.5, 2.0, 1.0],
-            //                                 ambient: [0.21, 0.21, 0.21],
-            //                                 diffuse: [0.8, 0.6, 0.45],
-            //                                 specular: [0.0, 0.0, 0.0]
-            //                             }
-            // ],
+            statusTextureLabel: 'gray', 
             lights: [this.lightPool.dimAmbient, this.lightPool.brightWhiteFrontal, this.lightPool.dimYellowHighlight],
             enterFunction: function () {
                 var current = this.getElement('currentItem');
@@ -326,6 +316,7 @@ window.ExperimentalScene = (function () {
                 this.getElement('previewGrid').distributeToDisplayItems(function (o,p) {o.textureLabel='gray';});
                 this.scene.lights = this.lights;
                 this.scene.updateLighting();
+                this.scene.showStatusGlyph(0xf047);
             },
             exitFunction: function () {
                 var current = this.getElement('currentItem');
@@ -333,6 +324,7 @@ window.ExperimentalScene = (function () {
                     current.model.hidden = true;
                 }
                 this.getElement('previewGrid').distributeToDisplayItems(function (o,p) {o.textureLabel='white';});
+                this.scene.showStatusGlyph(null);
             }
             
             
@@ -709,6 +701,7 @@ window.ExperimentalScene = (function () {
         ]);
         
         scene.showFractionComplete(0);
+        scene.showStatusGlyph(0xf0c7);
         
         var progressUpdater = function (messageInf) {
             if (messageInf.status == 'progress' && messageInf.type == 'download') {
@@ -721,6 +714,7 @@ window.ExperimentalScene = (function () {
         FCShapeUtils.loadMesh(scene.modelUrlFormat.replace('@@', itemInf.name), null, progressUpdater)
         .then(function (mesh) {
             scene.showFractionComplete(1);
+            scene.showStatusGlyph(null);
             var s = scene.previewObject && scene.previewObject.scaleFactor || layout.itemDisplay.scale;
             var newObj = new FCShapes.MeshShape(mesh, layout.itemDisplay.pos, {scale:s}, 
                                 null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
@@ -930,6 +924,37 @@ window.ExperimentalScene = (function () {
         };
         return buttonHandler;
     }
+    
+    /* 
+    0xf230 heart
+    0xf115 folder outline
+    0xf07c folder solid
+    0xf047 arrows
+    0xf258 ???
+    0xf0ce table
+    0xf00a grid
+    0xf0c7 floppy
+    */
+    Scene.prototype.showStatusGlyph = function (glyphCode) {
+        var scene = this;
+        var scale = 0.03;
+        if (glyphCode) {
+            scene._fetchMeshViaCache('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+glyphCode+'.obj')
+            .then(function (mesh) {
+                var meshInf = FCMeshTools.analyseMesh(mesh);
+                console.log(meshInf);
+                scene.removeObjectsInGroup('statusIcons');
+                var glyph = new FCShapes.MeshShape(mesh, null, {scale:scale}, null, {materialLabel:'matteplastic', groupLabel:'statusIcons'});
+                glyph.rotation = {x:-0.5*Math.PI, y:0, z:0};
+                glyph.translation = {x:(meshInf.maxX/2)*-1*scale, y:0.011, z:0.062};
+                glyph.behaviours.push(scene.t0);
+                scene.addObject(glyph);
+            });
+        }
+        else {
+            scene.removeObjectsInGroup('statusIcons');
+        }
+    }
         
     /*_ Scene init _*/
     
@@ -973,9 +998,15 @@ window.ExperimentalScene = (function () {
         var floorCollider = new FCUtil.PlanarCollider({planeNormal:[0, 0, -1], pointOnPlane:[0,0,0]}, floor, null);
         floorCollider.callback = function (dat) {
             var c = scene.getObjectByLabel('cursor');
-            c.pos.x = dat.collisionPoint[0];
-            c.pos.y = dat.collisionPoint[1];
-            c.pos.z = dat.collisionPoint[2];
+            if (dat.POI < 0) {
+                c.hidden = false;
+                c.pos.x = dat.collisionPoint[0];
+                c.pos.y = dat.collisionPoint[1];
+                c.pos.z = dat.collisionPoint[2];
+            }
+            else {
+                c.hidden = true;
+            }
         }
         scene.addObject(floor);
         
