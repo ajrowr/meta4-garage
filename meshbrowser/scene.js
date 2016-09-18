@@ -1,13 +1,8 @@
 /*_ Wishlist _*/
 /*
-    - loading indicator
-    - folders
     - tutorial / help
-    - disable arrow when no more things available
     - better mode indicator
-    - be able to rotate preview model while mesh is loading
     - constrain max mesh
-    - mesh sizes in json detail?
     - mesh spam if 2nd preview is requested too quickly
 */
 
@@ -375,6 +370,10 @@ window.ExperimentalScene = (function () {
                     text: {
                         orientation: {x:0, y:0, z:0},
                         offset: {x:-0.9*sp.sizeX, y:0, z:0.5}
+                    },
+                    textBoard: {
+                        position: {x:2.5, y:1, z:0}, 
+                        orientation: {y:1.5*Math.PI, x:0, z:0}
                     }
                     
                 }
@@ -408,6 +407,10 @@ window.ExperimentalScene = (function () {
                     },
                     text: {
                         orientation: {x:0, y:180/DEG, z:0}
+                    },
+                    textBoard: {
+                        position: {x:2.5, y:1, z:2.5}, 
+                        orientation: {y:1.2*Math.PI, x:0, z:0}
                     }
                     
                 }
@@ -935,6 +938,8 @@ window.ExperimentalScene = (function () {
         var DEG=360/(2*Math.PI);
         var _hidden_beneath_floor = {x:0, y:-3.5, z:0};
         
+        scene.uiLayout = scene.uiLayouts[scene.uiLayoutLabel](scene.stageParams);
+        
         console.log('setting up');
         
         /* Cursor */
@@ -1129,16 +1134,19 @@ window.ExperimentalScene = (function () {
         });
 
     }
+    
+    // Scene.
         
     /*_ Text handling stuff _*/
     
     Scene.prototype.showMessage = function (texts) {
         var scene = this;
+        var boardInf = scene.uiLayout.textBoard;
         var textBlocks = [];
         for (var i=0; i<texts.length; i++) {
             textBlocks.push({t:texts[i], color:'black', size:50});
         }
-        FCUtil.makeTextBoard(scene, textBlocks, {x:2.5, y:1, z:0}, {y:1.5*Math.PI, x:0, z:0}, null, null, null, {canvasColor:'white'})
+        FCUtil.makeTextBoard(scene, textBlocks, boardInf.position, boardInf.orientation, null, null, null, {canvasColor:'white'})
         .then(function (newBoard) {
             if (scene.displayBoard) {
                 scene.removeObject(scene.displayBoard);
