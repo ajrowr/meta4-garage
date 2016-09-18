@@ -94,6 +94,17 @@ window.ExperimentalScene = (function () {
     /* - setupScene is called. It has access to all of the prerequisities that have been loaded in previous */
     /*   stages of the setup, so this is where you should actually construct the scene itself. */
     /* */
+    
+    var asset = function (f) {
+        var assetPath = '//assets.meta4vr.net/@@';
+        return assetPath.replace('@@', f);
+    }
+    
+    var fontGlyph = function (fontName, glyphIdx) {
+        var format = '//meshbase.meta4vr.net/_typography/@F@/glyph_@I@.obj';
+        return format.replace('@F@', fontName).replace('@I@', glyphIdx);
+    }
+    
     var Scene = function() {
         FCScene.call(this);
         // this.meshes = {};
@@ -133,27 +144,27 @@ window.ExperimentalScene = (function () {
             shaders: [
                 /* Basic is very basic and doesn't take lighting into account */
                 {label: 'basic', 
-                 srcVertexShader: '//assets.meta4vr.net/shader/basic.vs', 
-                 srcFragmentShader: '//assets.meta4vr.net/shader/basic.fs'},
+                 srcVertexShader: asset('shader/basic.vs'), 
+                 srcFragmentShader: asset('shader/basic.fs')},
                 /* Diffuse is a fairly basic shader; no setup required and nearly impossible to break */
                 {label: 'diffuse', 
-                 srcVertexShader: 'diffuse2.vs', 
-                 srcFragmentShader: 'diffuse2.fs'},
+                 srcVertexShader: asset('shader/diffuse2.vs'), 
+                 srcFragmentShader: asset('shader/diffuse2.fs')},
                 /* ADS is Ambient Diffuse Specular; a fairly flexible shader which supports up to 7 positional */
                 /* lights, and materials. */
                 {label: 'ads',
-                 srcVertexShader: 'ads_v1.vs', 
-                 srcFragmentShader: 'ads_v1.fs'}
+                 srcVertexShader: asset('shader/ads_v1.vs'), 
+                 srcFragmentShader: asset('shader/ads_v1.fs')}
             ],
             meshes: [
                // {label: 'controller', src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj'}
-               {label: 'controller_body', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/body.obj'},
-               {label: 'controller_button_menu', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/button.obj'},
-               {label: 'controller_button_sys', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/sys_button.obj'},
-               {label: 'controller_trigger', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/trigger.obj'},
-               {label: 'controller_trackpad', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/trackpad.obj'},
-               {label: 'controller_grip_l', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/l_grip.obj'},
-               {label: 'controller_grip_r', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/r_grip.obj'}
+               {label: 'controller_body', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/body.obj')},
+               {label: 'controller_button_menu', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/button.obj')},
+               {label: 'controller_button_sys', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/sys_button.obj')},
+               {label: 'controller_trigger', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/trigger.obj')},
+               {label: 'controller_trackpad', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/trackpad.obj')},
+               {label: 'controller_grip_l', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/l_grip.obj')},
+               {label: 'controller_grip_r', src: asset('mesh/sys/vive/controller/vr_controller_lowpoly/r_grip.obj')}
             ],
             colors: [
                 {hex: '#00007f', label: 'navy'},
@@ -182,7 +193,7 @@ window.ExperimentalScene = (function () {
                 {hex: '#ffffff', label: 'white'}
             ],
             textures: [
-                {label: 'concrete01', src: '//assets.meta4vr.net/texture/concrete01.jpg'}
+                {label: 'concrete01', src: asset('texture/concrete01.jpg')}
             ],
             materials: [
                 {label: 'concrete', textureLabel: 'concrete01', shaderLabel: 'ads', ambient:[1,1,1], diffuse:[0.5,0.5,0.5]},
@@ -417,9 +428,6 @@ window.ExperimentalScene = (function () {
         this.previews = [];
         this.previewIdx = 0;
         
-        this.fontGlyphUrlFormat = '//meshbase.meta4vr.net/_typography/lato-bold/glyph_@@.obj'
-        
-        // this.modelFolder = 'statuary';
         this.modelFolder = '';
         this.startPageNumber = 0;
         
@@ -434,6 +442,7 @@ window.ExperimentalScene = (function () {
         
         this._meshCache = {};
     }
+    
     
     Scene.prototype = Object.create(FCScene.prototype);
     
@@ -939,7 +948,7 @@ window.ExperimentalScene = (function () {
         var scene = this;
         var scale = 0.03;
         if (glyphCode) {
-            scene._fetchMeshViaCache('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+glyphCode+'.obj')
+            scene._fetchMeshViaCache(fontGlyph('fontawesome', glyphCode))
             .then(function (mesh) {
                 var meshInf = FCMeshTools.analyseMesh(mesh);
                 console.log(meshInf);
@@ -1076,7 +1085,7 @@ window.ExperimentalScene = (function () {
         // });
 
         /* Display initial item which is a questionmark aka glyph 63 */
-        FCShapeUtils.loadMesh(scene.fontGlyphUrlFormat.replace('@@', 63))
+        FCShapeUtils.loadMesh(fontGlyph('lato-bold', 63))
         .then(function (mesh) {
             var layout = scene.uiLayout;
             var glyph = new FCShapes.MeshShape(mesh, layout.itemDisplay.pos, {scale:1.5}, null, {materialLabel:'matteplastic', textureLabel:'skin_2'});
@@ -1215,8 +1224,7 @@ window.ExperimentalScene = (function () {
                     continue;
                 }
                 
-                var meshPath = scene.fontGlyphUrlFormat.replace('@@', chrCode);/* */
-                glyphPromises.push(scene._fetchMeshViaCache(meshPath));
+                glyphPromises.push(scene._fetchMeshViaCache(fontGlyph('lato-bold', chrCode)));
             }
             Promise.all(glyphPromises).then(function (meshes) {
                 var glyphobjs = [];
