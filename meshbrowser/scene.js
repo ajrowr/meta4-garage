@@ -431,9 +431,12 @@ window.ExperimentalScene = (function () {
         this.modelFolder = '';
         this.startPageNumber = 0;
         
-        this.modelListUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=detail';
-        this.modelPreviewUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=grade';
-        this.modelUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=mesh';
+        // this.modelListUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=detail';
+        // this.modelPreviewUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=grade';
+        // this.modelUrlFormat = '//meshbase.meta4vr.net/mesh/@@?mode=mesh';
+        this.modelListUrlFormat = '//meta4vr.net/meshbase/mesh/@@?mode=detail';
+        this.modelPreviewUrlFormat = '//meta4vr.net/meshbase/mesh/@@?mode=grade';
+        this.modelUrlFormat = '//meta4vr.net/meshbase/mesh/@@?mode=mesh';
         this.statusIndicator = null;
         
         this.previewGrid = null;
