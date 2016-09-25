@@ -72,11 +72,16 @@
 
         
         </script>
-        <script src="/carnival/lib/fc_engine.js"></script>
+        <!-- // <script src="/carnival/lib/fc_engine.js"></script> -->
         <script>
         CARNIVAL.addScene(window.vrScene);
         CARNIVAL.start();
         window.S = window.vrScene;
+        CARNIVAL.loadComponent('net.meta4vr.vrcomponents.arrow', 'testcomponent.js')
+        .then(function (arrowClass) {
+            var arrow = new arrowClass({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
+            S.addObject(arrow);
+        })
         </script>
         
         
