@@ -1,0 +1,96 @@
+<html>
+    <head>
+        <script src="/carnival/thirdparty/wglu-program.js"></script>
+        <script src="/carnival/thirdparty/gl-matrix-min.js"></script>
+        
+        <script src="/carnival/lib/fc_util.js"></script>
+        <script src="/carnival/lib/fc_primitives.js"></script>
+        <script src="/carnival/lib/fc_basicshapes.js"></script>
+        <script src="/carnival/lib/fc_scene.js"></script>
+        <script src="/carnival/lib/fc_feedtools.js"></script>
+        <script src="carnival.js"></script>
+        <!-- // <script src="testcomponent.js"></script> -->
+        <script>
+        </script>
+        <script src="scene.js"></script>
+        
+    </head>
+    <body style="font-family: helvetica, arial;">
+        <button id="btn_start_vr" style="position: absolute; top: 1px, left: 1px; float: left; font-size: 200%; font-weight:bold;">START VR</button>
+            
+        <div id="error-container" style="display: none; color: white; font-size: 18pt; background-color: red; font-weight: bold;">
+            <p>Seems like something went wrong.</p>
+            <p id="error-detail">...</p>
+        </div>
+        <div id="canvas-container">
+            <canvas id="webgl-canvas" style="height: 30%;"></canvas>
+        </div>
+        <div id="controls-container">
+            <div id="readouts-container">
+                <input type="text" id="readoutA"><br>
+                <input type="text" id="readoutB"><br>
+                <input type="text" id="readoutC"><br>
+                <input type="text" id="readoutD"><br>
+                <input type="text" id="readoutE"><br>
+            </div>
+        </div>
+        <div id="cameracontrols">
+            <input type="text" id="cameraUpDegrees" value="32.0"> Camera up degrees<br/>
+            <input type="text" id="cameraDownDegrees" value="32.0"> Camera down degrees<br/>
+            <input type="text" id="cameraLeftDegrees" value="23.0"> Camera left degrees<br/>
+            <input type="text" id="cameraRightDegrees" value="32.0"> Camera right degrees<br/>
+            <input type="text" id="cameraTranslateX" value="0.0"> Camera translate X<br/>
+            <input type="text" id="cameraTranslateY" value="0.0"> Camera translate Y<br/>
+            <input type="text" id="cameraTranslateZ" value="0.0"> Camera translate Z<br/>
+        </div>
+        
+        <script>
+        window.vrScene = new ExperimentalScene();
+        
+        window.showError = function (errorMessage) {
+            document.getElementById('error-container').style.display = 'block';
+            var detailP = document.getElementById('error-detail');
+            if (errorMessage) {
+                detailP.innerHTML = '\<strong>Error detail:\</strong> ' + errorMessage;
+            }
+            else {
+                detailP.innerText = '';
+            }
+            
+        };
+        
+        document.getElementById('btn_start_vr').addEventListener('click', function () {
+            document.getElementById('btn_start_vr').style.display = 'none';
+            window.START_VR();
+            CARNIVAL.initVR();
+        });
+
+        window.updateReadout = function (readoutIdent, newValue) {
+            var readoutElem = document.getElementById('readout' + readoutIdent);
+            readoutElem.value = newValue;
+        }
+
+        
+        </script>
+        <script src="/carnival/lib/fc_engine.js"></script>
+        <script>
+        CARNIVAL.addScene(window.vrScene);
+        CARNIVAL.start();
+        window.S = window.vrScene;
+        </script>
+        
+        
+
+<!--
+        <div class="blurb">
+            <p>This is the boilerplate. It's intended simply as a starting point for building things on top of.</p>
+            <p>To start building something of your own, <a href="https://github.com/ajrowr/carnival-boilerplate">download or clone the boilerplate Git repo</a> and start digging around in scene.js to see what's what.</p>
+
+        </div>
+         -->
+        
+        
+        
+    </body>
+        
+</html>
