@@ -24,6 +24,7 @@ window.CARNIVAL = (function () {
         this.isRendering = false;
         
         this.canvas = null;
+        this.engine = null;
         
         // console.log('instanciating');
     }
@@ -43,7 +44,7 @@ window.CARNIVAL = (function () {
     Framework.prototype.showScene = dummy;
     Framework.prototype.startScene = dummy;
     // Framework.prototype.start = dummy;
-    Framework.prototype.initVR = dummy;
+    Framework.prototype.initVR = dummy; /* engine.setActiveViewports(['leftEye', 'rightEye', 'cam1']) */
     
     
     Framework.prototype.loadComponent = function (ident, url) {
@@ -88,13 +89,48 @@ window.CARNIVAL = (function () {
 
     var webglCanvas = null;
     var gl = null;
-    var scene = null;
+    var _scene = null;
 
+
+    var Engine = function (canvas, viewports) {
+        var engine = this;
+        this.canvas = canvas;
+        this.viewports = viewports;
+        this.vrDisplay = null;
+        this.clearColor = {r:0.1, g:0.4, b:0.2, a:1.0};
+        
+        this.gl = null;
+        this.viewMat = mat4.create();
+        this.poseMat = mat4.create();
+        this.projectionMat = mat4.create();
+        
+        this.orientation = [0, 0, 0];
+        this.position = [0, 0, 0];
+        
+        this.activeViewports = ['leftEye', 'rightEye']; // <<< TODO 
+        
+        console.log(navigator);
+        if (navigator.getVRDisplays) {
+            navigator.getVRDisplays()
+            .then(function (displays) {
+                if (displays.length > 0) {
+                    engine.vrDisplay = displays[0];
+                }
+            })
+        }
+        
+    }
+    
     
     Framework.prototype.start = function () {
         "use strict";
         
         var framework = this;
+        framework.engine = new Engine(framework.canvas, viewports);
+        framework.engine._scene = window.vrScene; // <<< NOPE
+        
+        if (framework.engine.vrDisplay) {
+        }
 
         /* Haptics actuators seem to operate all the way down to 0.00026 but aren't very noticeable at that level. */
         
@@ -109,7 +145,7 @@ window.CARNIVAL = (function () {
               window.vrDisplay = vrDisplay; /* TODO find a nicer way */
               vrComponents.display = vrDisplay;
       
-              initWebGL(true, vrDisplay.stageParameters);
+              framework.engine.initWebGL(true, vrDisplay.stageParameters);
       
               // if (vrDisplay.stageParameters &&
               //     vrDisplay.stageParameters.sizeX > 0 &&
@@ -128,12 +164,14 @@ window.CARNIVAL = (function () {
               // The UA may kick us out of VR present mode for any reason, so to
               // ensure we always know when we begin/end presenting we need to
               // listen for vrdisplaypresentchange events.
-              window.addEventListener('vrdisplaypresentchange', onVRPresentChange, false);
+              // window.addEventListener('vrdisplaypresentchange', onVRPresentChange, false);
+              window.addEventListener('vrdisplaypresentchange', function () {framework.engine.handleVRPresentChange();}, false);
       
               /* Bounds are [leftOffset, topOffset, width, height] */
               /* This could be useful for multiplexing, eg if we want to have cameras */
               window.START_VR = function () {
-                  vrDisplay.requestPresent([{ source: webglCanvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
+                  // vrDisplay.requestPresent([{ source: webglCanvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
+                  vrDisplay.requestPresent([{ source: framework.engine.canvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
                   /* Check gamepads for pose */
                   var gamepads = FCUtil.getVRGamepads(true);
                   var poseMissing = false;
@@ -164,13 +202,38 @@ window.CARNIVAL = (function () {
           // VRSamplesUtil.addError("Your browser does not support WebVR. See <a href='http://webvr.info'>webvr.info</a> for assistance.");
         }
         
-        window.requestAnimationFrame(onAnimationFrame);
+        window.requestAnimationFrame(function (tt) {framework.engine.handleAnimationFrame(tt);});
         
         
     }
     
+    Engine.prototype.initWebGL = function (preserveDrawingBuffer, stageParameters) {
+        var engine = this;
+        var glAttribs = {
+            alpha: false,
+            antialias: true,
+            preserveDrawingBuffer: preserveDrawingBuffer
+        };
+        gl = engine.canvas.getContext('webgl', glAttribs);
+        gl.clearColor(engine.clearColor.g, engine.clearColor.r, engine.clearColor.b, engine.clearColor.a);
+        // gl.clearColor(0.1, 0.4, 0.2, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+        engine.gl = gl;
+        if (engine._scene) {
+            engine._scene.init(gl, stageParameters);
+            engine._scene.setup();
+            engine._scene.isRendering = true;
+        }
+        
+        window.addEventListener('resize', function () {engine.handleResize();}, false);
+        engine.handleResize();
+        window.requestAnimationFrame(function (tt) {engine.handleAnimationFrame(tt);});
+        
+        
+    }
     
-    function initWebGL(preserveDrawingBuffer, stageParameters) {
+    function initWebGL(preserveDrawingBuffer, stageParameters) { ///////////////
         var glAttribs = {
             alpha: false,
             antialias: true,
@@ -195,7 +258,315 @@ window.CARNIVAL = (function () {
     }
     
     
+    Engine.prototype.handleAnimationFrame = function (t) {
+        var engine = this;
+        var gl = engine.gl;
+        if (!gl) return;
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        // TODO check for missing scene //
+        
+        if (engine.vrDisplay) {
+            // console.log('displaying');
+            engine.vrDisplay.requestAnimationFrame(function (tt) {engine.handleAnimationFrame(tt);});
+            var pose = engine.vrDisplay.getPose();
+            engine.getPoseMatrix(engine.poseMat, pose);
+            
+            var ploc = engine._scene && engine._scene.playerLocation || {x:0, y:0, z:0};
+            var trans = vec3.fromValues(ploc.x, ploc.y, ploc.z);
+            var reloc = mat4.create();
+            mat4.fromTranslation(reloc, trans);
+            mat4.mul(engine.poseMat, reloc, engine.poseMat);
+            
+            if (engine.vrDisplay.isPresenting) {
+                for (var i=0; i<engine.activeViewports.length; i++) {
+                    var myPort = engine.viewports[engine.activeViewports[i]];
+                    var cW = engine.canvas.width, cH = engine.canvas.height;
+                    gl.viewport(myPort.canvasBounds[0]*cW, myPort.canvasBounds[1]*cH, myPort.canvasBounds[2]*cW, myPort.canvasBounds[3]*cH);
+                    engine.renderSceneView(myPort.getPose && myPort.getPose() || engine.poseMat, myPort.getEyeParameters(), myPort.povLabel);
+                    // if (myPort.pose) {console.log(myPort.pose);}
+                }
+                engine.vrDisplay.submitFrame(pose);
+            }
+            else {
+                engine.gl.viewport(0, 0, engine.canvas.width, engine.canvas.height);
+                engine.renderSceneView(engine.poseMat, null);
+            }
+        }
+        else {
+            window.requestAnimationFrame(function (tt) {engine.handleAnimationFrame(tt);});
+            engine.gl.viewport(0, 0, engine.canvas.width, engine.canvas.height);
+            mat4.perspective(engine.projectionMat, Math.PI*0.4, engine.canvas.width / engine.canvas.height, 0.1, 1024.0);
+            mat4.identity(engine.viewMat);
+            mat4.translate(engine.viewMat, engine.viewMat, [0, -PLAYER_HEIGHT, 0]);
+            
+            /* TODO tell the scene to render here */
+            
+            // gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
+            // mat4.perspective(projectionMat, Math.PI*0.4, webglCanvas.width / webglCanvas.height, 0.1, 1024.0);
+            // mat4.identity(viewMat);
+            // mat4.translate(viewMat, viewMat, [0, -PLAYER_HEIGHT, 0]);
+            // scene.render(projectionMat, viewMat);
+            
+            
+        }
+        
+    }
     
+    
+    /* ---------------- */
+    function onAnimationFrame (t) {
+      // stats.begin();
+      if (!gl) return;
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      if (!window.vrScene && FC_SCENE_MISSING === null) {
+          FC_SCENE_MISSING = true;
+          var err = 'No scene was found in window.vrScene';
+          error(err);
+      }
+
+      if (vrDisplay) {
+        // When presenting content to the VRDisplay we want to update at its
+        // refresh rate if it differs from the refresh rate of the main
+        // display. Calling VRDisplay.requestAnimationFrame ensures we render
+        // at the right speed for VR.
+        vrDisplay.requestAnimationFrame(onAnimationFrame);
+
+        // var vrGamepads = [];
+        // var gamepads = navigator.getGamepads();
+        // for (var i=0; i<gamepads.length; ++i) {
+        //     var gamepad = gamepads[i];
+        //     if (gamepad && gamepad.pose) {
+        //         vrGamepads.push(gamepad);
+        //         for (var j=0; j < gamepad.buttons.length; ++j) {
+        //             if (gamepad.buttons[j].pressed) {
+        //                 console.log('Button '+j+' pressed');
+        //                 console.debug(gamepad);
+        //             }
+        //         }
+        //     }
+        // }
+
+        // As a general rule you want to get the pose as late as possible
+        // and call VRDisplay.submitFrame as early as possible after
+        // retrieving the pose. Do any work for the frame that doesn't need
+        // to know the pose earlier to ensure the lowest latency possible.
+        // ^^ observe this
+        var pose = vrDisplay.getPose();
+        getPoseMatrix(poseMat, pose);
+
+        /* let's try relocating the player */
+        /* If scene.playerLocation is updated, here's how we notice it */
+        var ploc = window.vrScene && window.vrScene.playerLocation || {x:0, y:0, z:0};
+        var trans = vec3.fromValues(ploc.x, ploc.y, ploc.z);
+        var reloc = mat4.create();
+        mat4.fromTranslation(reloc, trans);
+        // console.debug(reloc);
+        mat4.mul(poseMat, reloc, poseMat);
+        /* ... */
+
+        if (vrDisplay.isPresenting) {
+    
+            for (var i=0; i<activeViewports.length; i++) {
+                var myPort = activeViewports[i];
+                var cW = webglCanvas.width, cH = webglCanvas.height;
+                gl.viewport(myPort.canvasBounds[0]*cW, myPort.canvasBounds[1]*cH, myPort.canvasBounds[2]*cW, myPort.canvasBounds[3]*cH);
+                renderSceneView(myPort.getPose && myPort.getPose() || poseMat, myPort.getEyeParameters(), myPort.povLabel);
+                // if (myPort.pose) {console.log(myPort.pose);}
+            }
+
+          // If we're currently presenting to the VRDisplay we need to
+          // explicitly indicate we're done rendering and inform the
+          // display which pose was used to render the current frame.
+          vrDisplay.submitFrame(pose);
+        } else {
+          // When not presenting render a mono view that still takes pose into
+          // account.
+          gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
+          renderSceneView(poseMat, null);
+          // stats.renderOrtho();
+        }
+      } else {
+        window.requestAnimationFrame(onAnimationFrame);
+
+        // No VRDisplay found.
+        gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
+        mat4.perspective(projectionMat, Math.PI*0.4, webglCanvas.width / webglCanvas.height, 0.1, 1024.0);
+        mat4.identity(viewMat);
+        mat4.translate(viewMat, viewMat, [0, -PLAYER_HEIGHT, 0]);
+        scene.render(projectionMat, viewMat);
+
+        // stats.renderOrtho();
+      }
+
+      // stats.end();
+    }
+    
+    // ----------- end onAnimationFrame
+    
+    
+    
+    
+    // function onVRRequestPresent () {
+    //   // This can only be called in response to a user gesture.
+    //   vrDisplay.requestPresent([{ source: webglCanvas }]).then(function () {
+    //     // Nothing to do because we're handling things in onVRPresentChange.
+    //   }, function () {
+    //     VRSamplesUtil.addError("requestPresent failed.", 2000);
+    //   });
+    // }
+
+    // function onVRExitPresent () {
+    //   vrDisplay.exitPresent().then(function () {
+    //     // Nothing to do because we're handling things in onVRPresentChange.
+    //   }, function () {
+    //     VRSamplesUtil.addError("exitPresent failed.", 2000);
+    //   });
+    // }
+    
+    // Engine.prototype.handleVRRequestPresent = function () {
+    //     this.vrDisplay.requestPresent()
+    // }
+    
+    Engine.prototype.handleVRPresentChange = function () {
+        this.handleResize();
+    }
+    
+    function onVRPresentChange () {
+      // When we begin or end presenting, the canvas should be resized to the
+      // recommended dimensions for the display.
+      onResize();
+
+      if (vrDisplay.isPresenting) {
+        if (vrDisplay.capabilities.hasExternalDisplay) {
+          // Because we're not mirroring any images on an external screen will
+          // freeze while presenting. It's better to replace it with a message
+          // indicating that content is being shown on the VRDisplay.
+          // presentingMessage.style.display = "block";
+
+          // On devices with an external display the UA may not provide a way
+          // to exit VR presentation mode, so we should provide one ourselves.
+          // VRSamplesUtil.removeButton(vrPresentButton);
+          // vrPresentButton = VRSamplesUtil.addButton("Exit VR", "E", "../cardboard64.png", onVRExitPresent);
+        }
+      } else {
+        // If we have an external display take down the presenting message and
+        // change the button back to "Enter VR".
+        if (vrDisplay.capabilities.hasExternalDisplay) {
+          // presentingMessage.style.display = "";
+
+          // VRSamplesUtil.removeButton(vrPresentButton);
+          // vrPresentButton = VRSamplesUtil.addButton("Enter VR", "E", "../cardboard64.png", onVRRequestPresent);
+        }
+      }
+    }
+
+    
+    Engine.prototype.handleResize = function () {
+        var engine = this;
+        var display = engine.vrDisplay;
+        var canvas = engine.canvas;
+        if (display && display.isPresenting) {
+            var leftEye = display.getEyeParameters('left');
+            var rightEye = display.getEyeParameters('right');
+            canvas.width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+            canvas.height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+        }
+        else {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+        }
+    }
+    
+    function onResize () { //////
+      if (vrDisplay && vrDisplay.isPresenting) {
+        // If we're presenting we want to use the drawing buffer size
+        // recommended by the VRDevice, since that will ensure the best
+        // results post-distortion.
+        var leftEye = vrDisplay.getEyeParameters("left");
+        var rightEye = vrDisplay.getEyeParameters("right");
+
+        // For simplicity we're going to render both eyes at the same size,
+        // even if one eye needs less resolution. You can render each eye at
+        // the exact size it needs, but you'll need to adjust the viewports to
+        // account for that.
+        webglCanvas.width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
+        webglCanvas.height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
+      } else {
+        // We only want to change the size of the canvas drawing buffer to
+        // match the window dimensions when we're not presenting.
+        webglCanvas.width = webglCanvas.offsetWidth * window.devicePixelRatio;
+        webglCanvas.height = webglCanvas.offsetHeight * window.devicePixelRatio;
+      }
+    }
+    // window.addEventListener("resize", onResize, false);
+    // onResize();
+    
+    
+    Engine.prototype.getPoseMatrix = function (out, pose) {
+        var engine = this;
+        engine.orientation = pose.orientation || [0, 0, 0, 1];
+        engine.position = pose.position || [0, 0, 0];
+        if (engine.vrDisplay.stageParameters) {
+            mat4.fromRotationTranslation(out, engine.orientation, engine.position);
+            mat4.multiply(out, engine.vrDisplay.stageParameters.sittingToStandingTransform, out);
+        }
+        else {
+            // TODO worry about this later //
+        }
+    }
+    
+    
+    function getPoseMatrix (out, pose) { /////////
+      orientation = pose.orientation;
+      position = pose.position;
+      if (!orientation) { orientation = [0, 0, 0, 1]; }
+      if (!position) { position = [0, 0, 0]; }
+
+      if (vrDisplay.stageParameters) {
+        // If the headset provides stageParameters use the
+        // sittingToStandingTransform to transform the pose into a space where
+        // the floor in the center of the users play space is the origin.
+        mat4.fromRotationTranslation(out, orientation, position);
+        mat4.multiply(out, vrDisplay.stageParameters.sittingToStandingTransform, out);
+      } else {
+        // Otherwise you'll want to translate the view to compensate for the
+        // scene floor being at Y=0. Ideally this should match the user's
+        // height (you may want to make it configurable). For this demo we'll
+        // just assume all human beings are 1.65 meters (~5.4ft) tall.
+        vec3.add(standingPosition, position, [0, PLAYER_HEIGHT, 0]);
+        mat4.fromRotationTranslation(out, orientation, standingPosition);
+      }
+    }
+    
+    
+    Engine.prototype.renderSceneView = function (poseInMat, eye, pov) {
+        if (eye) {
+            mat4.translate(this.viewMat, poseInMat, eye.offset);
+            mat4.perspectiveFromFieldOfView(this.projectionMat, eye.fieldOfView, 0.1, 1024.0);
+            mat4.invert(this.viewMat, this.viewMat);
+        } else {
+            mat4.perspective(this.projectionMat, Math.PI*0.4, this.canvas.width / this.canvas.height, 0.1, 1024.0);
+            mat4.invert(this.viewMat, poseInMat);
+        }
+
+        if (this._scene) this._scene.render(this.projectionMat, this.viewMat, pov);
+    }
+
+    function renderSceneView (poseInMat, eye, pov) {/////////
+      if (eye) {
+        mat4.translate(viewMat, poseInMat, eye.offset);
+        mat4.perspectiveFromFieldOfView(projectionMat, eye.fieldOfView, 0.1, 1024.0);
+        mat4.invert(viewMat, viewMat);
+      } else {
+        mat4.perspective(projectionMat, Math.PI*0.4, webglCanvas.width / webglCanvas.height, 0.1, 1024.0);
+        mat4.invert(viewMat, poseInMat);
+      }
+
+      if (window.vrScene) window.vrScene.render(projectionMat, viewMat, pov);
+    }
+    
+    //// ----//// ----//// ----//// ----//// ----//// ----//// ----
     
     var error = function (err) {
         if (window.showError) {
@@ -427,210 +798,7 @@ window.CARNIVAL = (function () {
     ];
     
     
-    
-    
-    /* ---------------- */
-    function onAnimationFrame (t) {
-      // stats.begin();
-      if (!gl) return;
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      if (!window.vrScene && FC_SCENE_MISSING === null) {
-          FC_SCENE_MISSING = true;
-          var err = 'No scene was found in window.vrScene';
-          error(err);
-      }
 
-      if (vrDisplay) {
-        // When presenting content to the VRDisplay we want to update at its
-        // refresh rate if it differs from the refresh rate of the main
-        // display. Calling VRDisplay.requestAnimationFrame ensures we render
-        // at the right speed for VR.
-        vrDisplay.requestAnimationFrame(onAnimationFrame);
-
-        // var vrGamepads = [];
-        // var gamepads = navigator.getGamepads();
-        // for (var i=0; i<gamepads.length; ++i) {
-        //     var gamepad = gamepads[i];
-        //     if (gamepad && gamepad.pose) {
-        //         vrGamepads.push(gamepad);
-        //         for (var j=0; j < gamepad.buttons.length; ++j) {
-        //             if (gamepad.buttons[j].pressed) {
-        //                 console.log('Button '+j+' pressed');
-        //                 console.debug(gamepad);
-        //             }
-        //         }
-        //     }
-        // }
-
-        // As a general rule you want to get the pose as late as possible
-        // and call VRDisplay.submitFrame as early as possible after
-        // retrieving the pose. Do any work for the frame that doesn't need
-        // to know the pose earlier to ensure the lowest latency possible.
-        // ^^ observe this
-        var pose = vrDisplay.getPose();
-        getPoseMatrix(poseMat, pose);
-
-        /* let's try relocating the player */
-        /* If scene.playerLocation is updated, here's how we notice it */
-        var ploc = window.vrScene && window.vrScene.playerLocation || {x:0, y:0, z:0};
-        var trans = vec3.fromValues(ploc.x, ploc.y, ploc.z);
-        var reloc = mat4.create();
-        mat4.fromTranslation(reloc, trans);
-        // console.debug(reloc);
-        mat4.mul(poseMat, reloc, poseMat);
-        /* ... */
-
-        if (vrDisplay.isPresenting) {
-    
-            for (var i=0; i<activeViewports.length; i++) {
-                var myPort = activeViewports[i];
-                var cW = webglCanvas.width, cH = webglCanvas.height;
-                gl.viewport(myPort.canvasBounds[0]*cW, myPort.canvasBounds[1]*cH, myPort.canvasBounds[2]*cW, myPort.canvasBounds[3]*cH);
-                renderSceneView(myPort.getPose && myPort.getPose() || poseMat, myPort.getEyeParameters(), myPort.povLabel);
-                // if (myPort.pose) {console.log(myPort.pose);}
-            }
-
-          // If we're currently presenting to the VRDisplay we need to
-          // explicitly indicate we're done rendering and inform the
-          // display which pose was used to render the current frame.
-          vrDisplay.submitFrame(pose);
-        } else {
-          // When not presenting render a mono view that still takes pose into
-          // account.
-          gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
-          renderSceneView(poseMat, null);
-          // stats.renderOrtho();
-        }
-      } else {
-        window.requestAnimationFrame(onAnimationFrame);
-
-        // No VRDisplay found.
-        gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
-        mat4.perspective(projectionMat, Math.PI*0.4, webglCanvas.width / webglCanvas.height, 0.1, 1024.0);
-        mat4.identity(viewMat);
-        mat4.translate(viewMat, viewMat, [0, -PLAYER_HEIGHT, 0]);
-        scene.render(projectionMat, viewMat);
-
-        // stats.renderOrtho();
-      }
-
-      // stats.end();
-    }
-    
-    // ----------- end onAnimationFrame
-    
-    
-    
-    
-    function onVRRequestPresent () {
-      // This can only be called in response to a user gesture.
-      vrDisplay.requestPresent([{ source: webglCanvas }]).then(function () {
-        // Nothing to do because we're handling things in onVRPresentChange.
-      }, function () {
-        VRSamplesUtil.addError("requestPresent failed.", 2000);
-      });
-    }
-
-    function onVRExitPresent () {
-      vrDisplay.exitPresent().then(function () {
-        // Nothing to do because we're handling things in onVRPresentChange.
-      }, function () {
-        VRSamplesUtil.addError("exitPresent failed.", 2000);
-      });
-    }
-
-    function onVRPresentChange () {
-      // When we begin or end presenting, the canvas should be resized to the
-      // recommended dimensions for the display.
-      onResize();
-
-      if (vrDisplay.isPresenting) {
-        if (vrDisplay.capabilities.hasExternalDisplay) {
-          // Because we're not mirroring any images on an external screen will
-          // freeze while presenting. It's better to replace it with a message
-          // indicating that content is being shown on the VRDisplay.
-          // presentingMessage.style.display = "block";
-
-          // On devices with an external display the UA may not provide a way
-          // to exit VR presentation mode, so we should provide one ourselves.
-          // VRSamplesUtil.removeButton(vrPresentButton);
-          // vrPresentButton = VRSamplesUtil.addButton("Exit VR", "E", "../cardboard64.png", onVRExitPresent);
-        }
-      } else {
-        // If we have an external display take down the presenting message and
-        // change the button back to "Enter VR".
-        if (vrDisplay.capabilities.hasExternalDisplay) {
-          // presentingMessage.style.display = "";
-
-          // VRSamplesUtil.removeButton(vrPresentButton);
-          // vrPresentButton = VRSamplesUtil.addButton("Enter VR", "E", "../cardboard64.png", onVRRequestPresent);
-        }
-      }
-    }
-
-
-    function onResize () {
-      if (vrDisplay && vrDisplay.isPresenting) {
-        // If we're presenting we want to use the drawing buffer size
-        // recommended by the VRDevice, since that will ensure the best
-        // results post-distortion.
-        var leftEye = vrDisplay.getEyeParameters("left");
-        var rightEye = vrDisplay.getEyeParameters("right");
-
-        // For simplicity we're going to render both eyes at the same size,
-        // even if one eye needs less resolution. You can render each eye at
-        // the exact size it needs, but you'll need to adjust the viewports to
-        // account for that.
-        webglCanvas.width = Math.max(leftEye.renderWidth, rightEye.renderWidth) * 2;
-        webglCanvas.height = Math.max(leftEye.renderHeight, rightEye.renderHeight);
-      } else {
-        // We only want to change the size of the canvas drawing buffer to
-        // match the window dimensions when we're not presenting.
-        webglCanvas.width = webglCanvas.offsetWidth * window.devicePixelRatio;
-        webglCanvas.height = webglCanvas.offsetHeight * window.devicePixelRatio;
-      }
-    }
-    // window.addEventListener("resize", onResize, false);
-    // onResize();
-    
-    
-    
-    function getPoseMatrix (out, pose) {
-      orientation = pose.orientation;
-      position = pose.position;
-      if (!orientation) { orientation = [0, 0, 0, 1]; }
-      if (!position) { position = [0, 0, 0]; }
-
-      if (vrDisplay.stageParameters) {
-        // If the headset provides stageParameters use the
-        // sittingToStandingTransform to transform the pose into a space where
-        // the floor in the center of the users play space is the origin.
-        mat4.fromRotationTranslation(out, orientation, position);
-        mat4.multiply(out, vrDisplay.stageParameters.sittingToStandingTransform, out);
-      } else {
-        // Otherwise you'll want to translate the view to compensate for the
-        // scene floor being at Y=0. Ideally this should match the user's
-        // height (you may want to make it configurable). For this demo we'll
-        // just assume all human beings are 1.65 meters (~5.4ft) tall.
-        vec3.add(standingPosition, position, [0, PLAYER_HEIGHT, 0]);
-        mat4.fromRotationTranslation(out, orientation, standingPosition);
-      }
-    }
-
-
-    function renderSceneView (poseInMat, eye, pov) {
-      if (eye) {
-        mat4.translate(viewMat, poseInMat, eye.offset);
-        mat4.perspectiveFromFieldOfView(projectionMat, eye.fieldOfView, 0.1, 1024.0);
-        mat4.invert(viewMat, viewMat);
-      } else {
-        mat4.perspective(projectionMat, Math.PI*0.4, webglCanvas.width / webglCanvas.height, 0.1, 1024.0);
-        mat4.invert(viewMat, poseInMat);
-      }
-
-      if (window.vrScene) window.vrScene.render(projectionMat, viewMat, pov);
-    }
-    
     
     return new Framework();
     
