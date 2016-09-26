@@ -28,6 +28,21 @@ window.CARNIVAL = (function () {
         
         // console.log('instanciating');
     }
+    
+    Framework.prototype.initVR = function () {
+        
+        this.engine.vrDisplay.requestPresent([{ source: this.engine.canvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
+        /* Check gamepads for pose */
+        var gamepads = this.core.util.getVRGamepads(true);
+        var poseMissing = false;
+        for (var i = 0; i < gamepads.length; i++) {
+        poseMissing = poseMissing || (gamepads[i].pose === undefined);
+        }
+        if (poseMissing) {
+        error('Gamepads were detected but are not reporting a pose. You probably need to enable Gamepad Extensions in about:flags . <a style="color:green;" href="http://meta4vr.net/setup/" target="_top">Click here for the solution</a>');
+        }
+        
+    }
 
     Framework.prototype.addScene = function (newScene, label) {
         this.scenes.push({scene:newScene, label:label});
@@ -44,7 +59,7 @@ window.CARNIVAL = (function () {
     Framework.prototype.showScene = dummy;
     Framework.prototype.startScene = dummy;
     // Framework.prototype.start = dummy;
-    Framework.prototype.initVR = dummy; /* engine.setActiveViewports(['leftEye', 'rightEye', 'cam1']) */
+    // Framework.prototype.initVR = dummy; /* engine.setActiveViewports(['leftEye', 'rightEye', 'cam1']) */
     
     
     Framework.prototype.loadComponent = function (ident, url) {
@@ -170,20 +185,20 @@ window.CARNIVAL = (function () {
       
               /* Bounds are [leftOffset, topOffset, width, height] */
               /* This could be useful for multiplexing, eg if we want to have cameras */
-              window.START_VR = function () {
-                  // vrDisplay.requestPresent([{ source: webglCanvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
-                  vrDisplay.requestPresent([{ source: framework.engine.canvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
-                  /* Check gamepads for pose */
-                  var gamepads = FCUtil.getVRGamepads(true);
-                  var poseMissing = false;
-                  for (var i = 0; i < gamepads.length; i++) {
-                      poseMissing = poseMissing || (gamepads[i].pose === undefined);
-                  }
-                  if (poseMissing) {
-                      error('Gamepads were detected but are not reporting a pose. You probably need to enable Gamepad Extensions in about:flags . <a style="color:green;" href="http://meta4vr.net/setup/" target="_top">Click here for the solution</a>');
-                  }
-          
-              }
+              // window.START_VR = function () {
+              //     // vrDisplay.requestPresent([{ source: webglCanvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
+              //     vrDisplay.requestPresent([{ source: framework.engine.canvas, leftBounds:viewports.leftEye.headsetBounds, rightBounds:viewports.rightEye.headsetBounds }]);
+              //     /* Check gamepads for pose */
+              //     var gamepads = FCUtil.getVRGamepads(true);
+              //     var poseMissing = false;
+              //     for (var i = 0; i < gamepads.length; i++) {
+              //         poseMissing = poseMissing || (gamepads[i].pose === undefined);
+              //     }
+              //     if (poseMissing) {
+              //         error('Gamepads were detected but are not reporting a pose. You probably need to enable Gamepad Extensions in about:flags . <a style="color:green;" href="http://meta4vr.net/setup/" target="_top">Click here for the solution</a>');
+              //     }
+              //
+              // }
               /* window.START_VR() needs to be called in response to a user gesture to activate */
       
       
