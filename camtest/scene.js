@@ -20,6 +20,35 @@ Initialisation procedure for a Scene:
         long time before seeing anything.
 */
 
+
+
+// var DrawableContainer = function (pos, size, rotate, params) {
+//     CARNIVAL.core.primitives.Drawable.call(this, pos, size, rotate, params);
+//     this.parent = [];
+//     this.children = [];
+// }
+//
+// DrawableContainer.prototype = Object.create(CARNIVAL.core.primitives.Drawable.prototype);
+//
+// DrawableContainer.prototype.getChildren = function () {
+//     return this.children;
+// }
+//
+// DrawableContainer.prototype.addChild = function (newChild) {
+//     this.children.push(newChild);
+// }
+
+var CubeContainer = function (pos, size, rotate, params) {
+    CARNIVAL.core.primitives.Container.call(this, pos, size, rotate, params);
+    this.invisible = false;
+}
+
+CubeContainer.prototype = Object.create(CARNIVAL.core.primitives.Container.prototype);
+
+CubeContainer.prototype.divulge = CARNIVAL.core.shapes.SimpleCuboid.prototype.divulge;
+
+
+
 window.ExperimentalScene = (function () {
     "use strict";
     
@@ -429,8 +458,31 @@ window.ExperimentalScene = (function () {
         var c0Projector = CARNIVAL.core.util.makeControllerRayProjector(scene, 0, [floorCollider]);
         var c1ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 1, buttonHandler);
         
-        buildController(chromeMeshes, 'red', scene.trackers.a, [c0ButtonHandlingTracker, c0Projector]);
-        buildController(chromeMeshes, 'royalblue', scene.trackers.b, [c1ButtonHandlingTracker]);
+        CARNIVAL.loadComponent('net.meta4vr.vrui.sys.controller.vive_lowpoly', 'controllercomponent.js')
+        .then(function (controllerComponent) {
+            scene.addObject(new controllerComponent(
+                {textureLabel:'orange', altTextureLabel:'white', groupLabel:'controllers'}, 
+                [c0ButtonHandlingTracker, c0Projector]
+            ));
+            scene.addObject(new controllerComponent(
+                {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'}, 
+                [c1ButtonHandlingTracker]
+            ));
+            
+            // scene.addObject(c);
+            // c.prepare().then(function () {
+            //     scene.addObject(c);
+            // })
+            // scene.addObject(c);
+            // window.XYZZY = c;
+            // console.log(c);
+            /* It basically works and it's self contained but it needs to tie in with the mesh caching */
+            /* Also you should use this as an opportunity to fully standardise the construction of objects and make things able to be constructed with a JSON */
+        });
+        
+        
+        // buildController(chromeMeshes, 'red', scene.trackers.a, [c0ButtonHandlingTracker, c0Projector]);
+        // buildController(chromeMeshes, 'royalblue', scene.trackers.b, [c1ButtonHandlingTracker]);
         
         /* === === === Putting some things in the scene === === === */
         /* Let's add some text to the scene by:
@@ -471,8 +523,45 @@ window.ExperimentalScene = (function () {
             });
         }
         
-        showText('#virtualreality', {x:2, y:0.3, z:3}, {x:0, y:DEG(180), z:0});
-        showText('/meta4vr', {x:-1.7, y:0.3, z:-3}, {x:0, y:0, z:0});
+        var showText2 = function (textStr, basePos, baseOri, scale, label) {
+            scale = scale || 1.0;
+            var textContainer = new CARNIVAL.core.primitives.Container(basePos, null, baseOri, {label:label});
+            textContainer.invisible = true;
+            // var rotQuat = quat.create();
+            // quat.rotateX(rotQuat, rotQuat, baseOri.x);
+            // quat.rotateY(rotQuat, rotQuat, baseOri.y);
+            // quat.rotateZ(rotQuat, rotQuat, baseOri.z);
+            // var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
+            // var mat = mat4.create();
+            // mat4.fromRotationTranslation(mat, rotQuat, transVec);
+            
+            var glyphPromises = [];
+            var xOffset = 0;
+            for (var i=0; i<textStr.length; i++) {
+                var glyph;
+                var meshPath = '//meshbase.meta4vr.net/_typography/lato-bold/glyph_'+textStr.charCodeAt(i)+'.obj';
+                glyphPromises.push(CARNIVAL.core.shapeutils.loadMesh(meshPath));
+            }
+            Promise.all(glyphPromises).then(function (meshes) {
+                for (var i=0; i<meshes.length; i++) {
+                    var mesh = meshes[i];
+                    var meshInfo = CARNIVAL.core.meshtools.analyseMesh(mesh);
+                    glyph = new CARNIVAL.core.shapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
+                                {materialLabel:'matteplastic', groupLabel:'letters'});
+                    // glyph.inheritedMatrix = mat;
+                    // scene.addObject(glyph);
+                    textContainer.addChild(glyph);
+                    xOffset += meshInfo.maxX*1.2*scale;
+                
+                }
+                scene.addObject(textContainer);
+            });
+        }
+        
+        showText2('#virtualreality', {x:2, y:0.3, z:3}, {x:0, y:DEG(180), z:0});
+        showText2('/meta4vr', {x:-1.7, y:0.3, z:-3}, {x:0, y:0, z:0});
+        showText2('hello', {x:0, y:0, z:0}, {x:0, y:0, z:0}, null, 'textthing');
+        // scene.getObjectByLabel('textthing').behaviours.push(scene.trackers.a);
         
         /* Add a facebook icon from a FontAwesome glyph mesh. */
         /* The entire FontAwesome v4.6.3 glyphset is on meshbase, to get the hexcodes google "fontawesome cheat sheet" */
@@ -488,6 +577,30 @@ window.ExperimentalScene = (function () {
             S.addObject(arrow);
         })
         
+        
+        var gd1 = new CubeContainer({x:2, y:0, z:1}, {w:0.5, h:0.5, d:0.5}, null, {materialLabel:'matteplastic'});
+        // gd1.invisible = true;
+        var gd1a = new CubeContainer({x:0, y:1, z:1}, {w:0.3, h:0.3, d:0.3}, null, {materialLabel:'matteplastic'});
+        var gd1b = new CubeContainer({x:0, y:1, z:-1}, {w:0.3, h:0.3, d:0.3}, null, {materialLabel:'matteplastic'});
+        var gd1c = new CubeContainer({x:0, y:1, z:0}, {w:0.3, h:0.3, d:0.3}, {x:0.2, y:0, z:0}, {materialLabel:'matteplastic'});
+        var gd1c1 = new CubeContainer({x:0, y:1, z:0}, {w:0.3, h:0.3, d:0.3}, {x:0.5, y:0, z:0}, {materialLabel:'matteplastic'});
+        var gd1c2 = new CubeContainer({x:0, y:1, z:0}, {w:0.3, h:0.3, d:0.3}, {x:-0.5, y:0, z:0}, {materialLabel:'matteplastic'});
+        gd1.addChild(gd1a);
+        gd1.addChild(gd1b);
+        gd1.addChild(gd1c);
+        gd1c.addChild(gd1c1);
+        gd1c.addChild(gd1c2);
+        // scene.prepareObject(gd1);
+        // scene.prepareObject(gd1a);
+        // scene.prepareObject(gd1b);
+        // scene.prepareObject(gd1c);
+        // scene.prepareObject(gd1c1);
+        // scene.prepareObject(gd1c2);
+        
+        // scene.sceneGraph = gd1;
+        scene.addObject(gd1);
+        
+        window.THING = gd1;
         
     }
 

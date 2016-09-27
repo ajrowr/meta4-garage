@@ -78,10 +78,32 @@ window.CARNIVAL = (function () {
     };
     
     Framework.prototype.registerComponent = function (componentIdent, klass) {
+        var framework = this;
         console.log('registering component', componentIdent);
         this.components[componentIdent] = klass;
-        var resolver = this._componentResolvers[componentIdent];
-        if (resolver && resolver.call) resolver(klass);
+        var reqPromises = [];
+        if (klass.prototype._requisites) {
+            console.log('Requisistes:', klass.prototype._requisites);
+            var requi = klass.prototype._requisites;
+            for (var i = 0; i < requi.meshes.length; i++) {
+                var meshInf = requi.meshes[i];
+                reqPromises.push(
+                    (function (inf) {return new Promise(function (resolve, reject) {
+                        CARNIVAL.core.shapeutils.loadMesh(inf.src).then(function (mesh) {resolve({label:inf.label, mesh:mesh});})
+                    })})(meshInf)
+                );
+            }
+        }
+        Promise.all(reqPromises).then(function (things) {
+            var res = {};
+            for (var i = 0; i < things.length; i++) {
+                var thisThing = things[i];
+                res[thisThing.label] = thisThing;
+            }
+            klass.prototype.resources = res;
+            var resolver = framework._componentResolvers[componentIdent];
+            if (resolver && resolver.call) resolver(klass);
+        });
     };
     
     
