@@ -429,138 +429,33 @@ window.ExperimentalScene = (function () {
         scene.trackers.a = CARNIVAL.core.util.makeGamepadTracker(scene, 0, null);
         scene.trackers.b = CARNIVAL.core.util.makeGamepadTracker(scene, 1, null);
                 
-        /* Factory function for controllers
-           primaryBehaviours are specific behaviors that will only be applied to the first item of chrome.
-           basicTracker is a simple tracker that just moves the chrome around.
-        */
-        var buildController = function (chromeMeshes, texLabel, basicTracker, primaryBehaviours) {
-            var p = {
-                textureLabel: texLabel, materialLabel: 'matteplastic', groupLabel: 'controllerTrackers'
-            };
-            for (var i = 0; i < chromeMeshes.length; i++) {
-                var o = new CARNIVAL.core.shapes.MeshShape(chromeMeshes[i], _hidden(), {scale:1}, null, p);
-                if (i==0) {
-                    for (var j = 0; j < primaryBehaviours.length; j++) {
-                        o.behaviours.push(primaryBehaviours[j]);
-                    }
-                }
-                else {
-                    o.behaviours.push(basicTracker);
-                }
-                scene.addObject(o);
-            }
+        
+        
+        var addToScene = function (component) {
+            scene.addObject(component);
         }
         
-        /* Get the bits and pieces ready for building the controllers */
-        var chromeMeshes = (function (L) {var out=[]; for (var i=0; i<L.length; i++) {out.push(scene.meshes['controller_'+L[i]]);} return out;})
-            (['body', 'button_menu', 'button_sys', 'trigger', 'trackpad', 'grip_l', 'grip_r']);        
-        var c0ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 0, buttonHandler);
-        var c0Projector = CARNIVAL.core.util.makeControllerRayProjector(scene, 0, [floorCollider]);
-        var c1ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 1, buttonHandler);
+        
         
         CARNIVAL.loadComponent('net.meta4vr.vrui.sys.controller.vive_lowpoly', 'controllercomponent.js')
         .then(function (controllerComponent) {
-            scene.addObject(new controllerComponent(
+            var c0ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 0, buttonHandler);
+            var c0Projector = CARNIVAL.core.util.makeControllerRayProjector(scene, 0, [floorCollider]);
+            var c1ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 1, buttonHandler);
+            new controllerComponent(
                 {textureLabel:'orange', altTextureLabel:'white', groupLabel:'controllers'}, 
                 [c0ButtonHandlingTracker, c0Projector]
-            ));
-            scene.addObject(new controllerComponent(
+            ).prepare().then(addToScene);
+            new controllerComponent(
                 {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'}, 
                 [c1ButtonHandlingTracker]
-            ));
+            ).prepare().then(addToScene);
             
-            // scene.addObject(c);
-            // c.prepare().then(function () {
-            //     scene.addObject(c);
-            // })
-            // scene.addObject(c);
-            // window.XYZZY = c;
-            // console.log(c);
             /* It basically works and it's self contained but it needs to tie in with the mesh caching */
             /* Also you should use this as an opportunity to fully standardise the construction of objects and make things able to be constructed with a JSON */
         });
         
-        
-        // buildController(chromeMeshes, 'red', scene.trackers.a, [c0ButtonHandlingTracker, c0Projector]);
-        // buildController(chromeMeshes, 'royalblue', scene.trackers.b, [c1ButtonHandlingTracker]);
-        
-        /* === === === Putting some things in the scene === === === */
-        /* Let's add some text to the scene by:
-           - loading meshes representing letters and other typographical characters (aka glyphs) 
-           - then creating drawable objects from those meshes
-           - then adding the drawables to the scene.
-        */  
-        
-        /* Function for adding example text, made up of glyphs loaded from meshes */
-        var showText = function (textStr, basePos, baseOri, scale) {
-            scale = scale || 1.0;
-            var rotQuat = quat.create();
-            quat.rotateX(rotQuat, rotQuat, baseOri.x);
-            quat.rotateY(rotQuat, rotQuat, baseOri.y);
-            quat.rotateZ(rotQuat, rotQuat, baseOri.z);
-            var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
-            var mat = mat4.create();
-            mat4.fromRotationTranslation(mat, rotQuat, transVec);
-            
-            var glyphPromises = [];
-            var xOffset = 0;
-            for (var i=0; i<textStr.length; i++) {
-                var glyph;
-                var meshPath = '//meshbase.meta4vr.net/_typography/lato-bold/glyph_'+textStr.charCodeAt(i)+'.obj';
-                glyphPromises.push(CARNIVAL.core.shapeutils.loadMesh(meshPath));
-            }
-            Promise.all(glyphPromises).then(function (meshes) {
-                for (var i=0; i<meshes.length; i++) {
-                    var mesh = meshes[i];
-                    var meshInfo = CARNIVAL.core.meshtools.analyseMesh(mesh);
-                    glyph = new CARNIVAL.core.shapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
-                                {materialLabel:'matteplastic', groupLabel:'letters'});
-                    glyph.inheritedMatrix = mat;
-                    scene.addObject(glyph);
-                    xOffset += meshInfo.maxX*1.2*scale;
-                
-                }
-            });
-        }
-        
-        var showText2 = function (textStr, basePos, baseOri, scale, label) {
-            scale = scale || 1.0;
-            var textContainer = new CARNIVAL.core.primitives.Container(basePos, null, baseOri, {label:label});
-            textContainer.invisible = true;
-            // var rotQuat = quat.create();
-            // quat.rotateX(rotQuat, rotQuat, baseOri.x);
-            // quat.rotateY(rotQuat, rotQuat, baseOri.y);
-            // quat.rotateZ(rotQuat, rotQuat, baseOri.z);
-            // var transVec = vec3.fromValues(basePos.x, basePos.y, basePos.z);
-            // var mat = mat4.create();
-            // mat4.fromRotationTranslation(mat, rotQuat, transVec);
-            
-            var glyphPromises = [];
-            var xOffset = 0;
-            for (var i=0; i<textStr.length; i++) {
-                var glyph;
-                var meshPath = '//meshbase.meta4vr.net/_typography/lato-bold/glyph_'+textStr.charCodeAt(i)+'.obj';
-                glyphPromises.push(CARNIVAL.core.shapeutils.loadMesh(meshPath));
-            }
-            Promise.all(glyphPromises).then(function (meshes) {
-                for (var i=0; i<meshes.length; i++) {
-                    var mesh = meshes[i];
-                    var meshInfo = CARNIVAL.core.meshtools.analyseMesh(mesh);
-                    glyph = new CARNIVAL.core.shapes.MeshShape(mesh, {x:xOffset, y:0, z:0}, {scale:scale}, null,
-                                {materialLabel:'matteplastic', groupLabel:'letters'});
-                    // glyph.inheritedMatrix = mat;
-                    // scene.addObject(glyph);
-                    textContainer.addChild(glyph);
-                    xOffset += meshInfo.maxX*1.2*scale;
-                
-                }
-                scene.addObject(textContainer);
-            });
-        }
-        
-        showText2('#virtualreality', {x:2, y:0.3, z:3}, {x:0, y:DEG(180), z:0});
-        showText2('/meta4vr', {x:-1.7, y:0.3, z:-3}, {x:0, y:0, z:0});
-        showText2('hello', {x:0, y:0, z:0}, {x:0, y:0, z:0}, null, 'textthing');
+        // showText2('hello', {x:0, y:0, z:0}, {x:0, y:0, z:0}, null, 'textthing');
         // scene.getObjectByLabel('textthing').behaviours.push(scene.trackers.a);
         
         /* Add a facebook icon from a FontAwesome glyph mesh. */
@@ -574,7 +469,29 @@ window.ExperimentalScene = (function () {
         CARNIVAL.loadComponent('net.meta4vr.vrcomponents.arrow', 'testcomponent.js')
         .then(function (arrowClass) {
             var arrow = new arrowClass({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
-            S.addObject(arrow);
+            scene.addObject(arrow);
+        })
+        
+        CARNIVAL.loadComponent('net.meta4vr.vrui.text.glyphtext', 'glyphtextcomponent.js')
+        .then(function (textClass) {
+            // new textClass({
+            //     position: {x:1, y:1, z:3},
+            //     orientation: {x:0, y:Math.PI, z:0},
+            //     text: 'OH HI HELLO HOW ARE YOU'
+            // }).prepare().then(addToScene);
+            
+            new textClass({
+                text: '#virtualreality',
+                position: {x:2, y:0.3, z:3},
+                orientation: {x:0, y:DEG(180), z:0}
+            }).prepare().then(addToScene);
+            
+            new textClass({
+                text: '/meta4vr', 
+                position: {x:-1.7, y:0.3, z:-3}, 
+                orientation: {x:0, y:0, z:0}
+            }).prepare().then(addToScene);
+            
         })
         
         
@@ -590,17 +507,9 @@ window.ExperimentalScene = (function () {
         gd1.addChild(gd1c);
         gd1c.addChild(gd1c1);
         gd1c.addChild(gd1c2);
-        // scene.prepareObject(gd1);
-        // scene.prepareObject(gd1a);
-        // scene.prepareObject(gd1b);
-        // scene.prepareObject(gd1c);
-        // scene.prepareObject(gd1c1);
-        // scene.prepareObject(gd1c2);
-        
         // scene.sceneGraph = gd1;
         scene.addObject(gd1);
         
-        window.THING = gd1;
         
     }
 

@@ -45,7 +45,12 @@ CARNIVAL.registerComponent('net.meta4vr.vrui.sys.controller.vive_lowpoly', funct
     }
 
     ControllerChrome.prototype = Object.create(superclass.prototype);
-
+    
+    ControllerChrome.prototype.prepare = function () {
+        var ctrl = this;
+        return new Promise(function (resolve, reject) {resolve(ctrl);});
+    }
+    
     ControllerChrome.prototype._requisites = {
         meshes: [
             {label: 'controller_body', src: '//assets.meta4vr.net/mesh/sys/vive/controller/vr_controller_lowpoly/body.obj'},
