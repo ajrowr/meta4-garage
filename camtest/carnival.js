@@ -1,4 +1,25 @@
 
+/* Components need -
+    - multiple componensts per file
+    - show() and hide()
+    - equivalent for loadprereqs - basically like a scene's setup procedure
+    - caching
+    - component catalogs
+    - more elegant way to address components - CARNIVAL.component('name')
+    - load as
+    - components as prereqs (should work anyway)
+    - 
+
+    C.component.load(...)
+    
+    
+    
+Carnival framework itself - 
+- should move things like shader loading into here
+- change locations of things eg. mesh loading
+- clusterize and compile with grunt? minify?
+*/
+
 /* This code (or something like it) will become part of (or a wrapper for) the framework. */
 window.CARNIVAL = (function () {
     
@@ -6,6 +27,7 @@ window.CARNIVAL = (function () {
         this.components = {};
         this._componentPromises = {};
         this._componentResolvers = {};
+        this._componentMeta = {};
         
         this.core = {
             util: FCUtil,
@@ -62,12 +84,13 @@ window.CARNIVAL = (function () {
     // Framework.prototype.initVR = dummy; /* engine.setActiveViewports(['leftEye', 'rightEye', 'cam1']) */
     
     
-    Framework.prototype.loadComponent = function (ident, url) {
+    Framework.prototype.loadComponent = function (ident, url, label) {
         /* component will need to call CARNIVAL.registerComponent($ident, class) or something when it loads */
         /* ident eg net.meta4vr.vrcomponent.selectgrid */
         var framework = this;
         var loader = document.createElement('script');
         loader.src = url;
+        framework._componentMeta[ident] = {label:label};
         var p = new Promise(function (resolve, reject) {
             framework._componentResolvers[ident] = resolve;
         });
@@ -80,7 +103,9 @@ window.CARNIVAL = (function () {
     Framework.prototype.registerComponent = function (componentIdent, klass) {
         var framework = this;
         console.log('registering component', componentIdent);
-        this.components[componentIdent] = klass;
+        var myMeta = framework._componentMeta[componentIdent];
+        var cLabel = myMeta.label || componentIdent;
+        framework.components[cLabel] = klass;
         var reqPromises = [];
         if (klass.prototype._requisites) {
             console.log('Requisistes:', klass.prototype._requisites);
@@ -89,7 +114,7 @@ window.CARNIVAL = (function () {
                 var meshInf = requi.meshes[i];
                 reqPromises.push(
                     (function (inf) {return new Promise(function (resolve, reject) {
-                        CARNIVAL.core.shapeutils.loadMesh(inf.src).then(function (mesh) {resolve({label:inf.label, mesh:mesh});})
+                        CARNIVAL.mesh.load(inf.src).then(function (mesh) {resolve({label:inf.label, mesh:mesh});})
                     })})(meshInf)
                 );
             }

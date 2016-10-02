@@ -39,13 +39,13 @@ Initialisation procedure for a Scene:
 // }
 
 var CubeContainer = function (pos, size, rotate, params) {
-    CARNIVAL.core.primitives.Container.call(this, pos, size, rotate, params);
+    CARNIVAL.primitive.Container.call(this, pos, size, rotate, params);
     this.invisible = false;
 }
 
-CubeContainer.prototype = Object.create(CARNIVAL.core.primitives.Container.prototype);
+CubeContainer.prototype = Object.create(CARNIVAL.primitive.Container.prototype);
 
-CubeContainer.prototype.divulge = CARNIVAL.core.shapes.SimpleCuboid.prototype.divulge;
+CubeContainer.prototype.divulge = CARNIVAL.shape.Cuboid.prototype.divulge;
 
 
 
@@ -55,9 +55,9 @@ window.ExperimentalScene = (function () {
     var DEG = function (deg) {return deg*(Math.PI/180)}; /* Convert degrees to radians, very handy */
     
     function Scene() {
-        CARNIVAL.core.scene.call(this); /* << Don't remove this! */
+        CARNIVAL.scene.Scene.call(this); /* << Don't remove this! */ /* TODO */
         
-        var scene = this; /* << Not compulsory but a good habit to have for scene instance methods. */
+        var scene = this; /* << Not compulsory but a good habit to have. Increases readability and makes life easier when dealing with a lot of Promises and other scope capturers */
         
         /* Declare any class and instance vars unique to this scene, here.
            This constructor is called before the machinery of the engine is fully initialised, so this is the right place for
@@ -192,76 +192,26 @@ window.ExperimentalScene = (function () {
         
     }
     
-    Scene.prototype = Object.create(CARNIVAL.core.scene.prototype);
+    Scene.prototype = Object.create(CARNIVAL.scene.Scene.prototype);
     
     Scene.prototype.setupPrereqs = function () {
-        return new Promise(function (resolve, reject) {resolve()});
+        // return new Promise(function (resolve, reject) {resolve()});
         
-        /* NB: NONE OF THIS WILL BE EXECUTED since this function already returned.
-           setupPrereqs used to be very important but nowadays most things can be loaded
-           automatically by specifying scene.prerequisites in the scene constructor.
-           However since it makes for good examples I've left a few bits and pieces in here.
-        */
-        
-        var scene = this;
-        var prereqPromises = [];
         return new Promise(function (resolve, reject) {
-
-            /* Load textures */
-            var textures = [
-                {src: '//assets.meta4vr.net/texture/concrete01.jpg', label: 'concrete01'}
+            var promises = [];
+            var comps = [
+                {ident:'net.meta4vr.vrui.sys.controller.vive_lowpoly', src:'/_components/controllercomponent.js', label:'controller'},
+                {ident:'net.meta4vr.vrcomponents.arrow', src:'/_components/arrowcomponent.js', label:'arrow'},
+                // {ident:'', src:'', label:''},
+                {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'}
             ];
-            for (var i=0; i<textures.length; i++) {
-                var myTex = textures[i];
-                prereqPromises.push(scene.addTextureFromImage(myTex.src, myTex.label));
+            for (var i = 0; i < comps.length; i++) {
+                var c = comps[i];
+                promises.push(CARNIVAL.loadComponent(c.ident, c.src, c.label));
             }
-            
-            /* Build solid colour textures */
-            var texColors = [
-                {hex: '#000000', label: 'black'},
-                {hex: '#888888', label: 'gray'},
-                {hex: '#ffffff', label: 'white'}
-            ];
-            for (var i=0; i<texColors.length; i++) {
-                var myTexColor = texColors[i];
-                scene.addTextureFromColor(myTexColor, myTexColor.label);
-            }
-                        
-            /* Load meshes */
-            var meshes = [
-                {src: '//assets.meta4vr.net/mesh/obj/sys/vive/controller/ctrl_lowpoly_body.obj', label: 'controller'}
-            ];
-            for (var i=0; i<meshes.length; i++) {
-                var myMesh = meshes[i];
-                prereqPromises.push(new Promise(function (resolve, reject) {
-                    CARNIVAL.core.shapeutils.loadObj(myMesh.src)
-                    .then(function (mesh) {
-                        scene.meshes[myMesh.label] = mesh;
-                        resolve();
-                    })
-                }))
-            }
+            Promise.all(promises).then(function (things) {resolve()});
+        });
         
-            /* Load shaders */
-            var shaders = [
-                {srcFs: '//assets.meta4vr.net/shader/basic.fs', srcVs: '//assets.meta4vr.net/shader/basic.vs', label: 'basic'},
-                {srcFs: '//assets.meta4vr.net/shader/diffuse2.fs', srcVs: '//assets.meta4vr.net/shader/diffuse2.vs', label: 'diffuse'}
-            ];
-            for (var i=0; i<shaders.length; i++) {
-                var myShader = shaders[i];
-                prereqPromises.push(scene.addShaderFromUrlPair(myShader.srcVs, myShader.srcFs, myShader.label, {
-                    position: 0,
-                    texCoord: 1,
-                    vertexNormal: 2                
-                }));
-            }
-            
-            /* Wait for everything to finish and resolve() */
-            Promise.all(prereqPromises).then(function () {
-                resolve();
-            });
-            
-        })
         
     }
     
@@ -285,7 +235,7 @@ window.ExperimentalScene = (function () {
                 var myLight = this.lights[i];
                 if (!(myLight.diffuse && myLight.position)) continue;
                 var tex = this.addTextureFromColor({r:myLight.diffuse[0], g:myLight.diffuse[1], b:myLight.diffuse[2]});
-                var c = new CARNIVAL.core.shapes.SimpleCuboid(
+                var c = new CARNIVAL.shape.Cuboid(
                     {x:myLight.position[0], y:myLight.position[1], z:myLight.position[2]},
                     {w:0.3, h:0.3, d:0.3},
                     null, {texture:tex, shaderLabel:'basic', groupLabel:'lamps'}
@@ -304,7 +254,7 @@ window.ExperimentalScene = (function () {
         console.log('Setting up scene...');
         
         /* Build the cursor */
-        var cursor = new CARNIVAL.core.shapes.SimpleCuboid(
+        var cursor = new CARNIVAL.shape.Cuboid(
             _hidden(),
             {w: 0.3, h:0.3, d:0.3},
             null,
@@ -317,7 +267,7 @@ window.ExperimentalScene = (function () {
         scene.addObject(cursor);
         
         /* Build the floor */
-        var floor = new CARNIVAL.core.shapes.WallShape(
+        var floor = new CARNIVAL.shape.Rectangle(
             {x: 0, z: 0, y: -0.02},
             {minX: -20, maxX: 20, minY: -20, maxY: 20},
             {x:DEG(270), y:0, z:0},
@@ -331,7 +281,7 @@ window.ExperimentalScene = (function () {
            This is perhaps counterintuitive and may change. Colliders generally are not as easy to use, yet,
            as I would like.
         */
-        var floorCollider = new CARNIVAL.core.util.PlanarCollider({planeNormal:[0, 0, -1], pointOnPlane:[0,0,0]}, floor, null);
+        var floorCollider = new CARNIVAL.util.PlanarCollider({planeNormal:[0, 0, -1], pointOnPlane:[0,0,0]}, floor, null); /* TODO */
         floorCollider.callback = function (dat) {
             // updateReadout('A', dat.POI);
             // updateReadout('B', dat.collisionPoint);
@@ -366,7 +316,7 @@ window.ExperimentalScene = (function () {
             z: scene.stageParams.sizeZ / 2
         };
         console.log(scene.stageParams);
-        scene.addObject(new CARNIVAL.core.shapes.WallShape(
+        scene.addObject(new CARNIVAL.shape.Rectangle(
             {x: 0, z: 0, y: 0},
             {minX: -1*stageExtent.x, maxX: stageExtent.x, minY: -1*stageExtent.z, maxY: stageExtent.z},
             {x:DEG(270), y:0, z:0},
@@ -426,9 +376,8 @@ window.ExperimentalScene = (function () {
         */
         
         /* Build a pair of simple trackers and add them to the scene for later re-use. */
-        scene.trackers.a = CARNIVAL.core.util.makeGamepadTracker(scene, 0, null);
-        scene.trackers.b = CARNIVAL.core.util.makeGamepadTracker(scene, 1, null);
-                
+        scene.trackers.a = CARNIVAL.hardware.controller.makeTracker(scene, 0, null);
+        scene.trackers.b = CARNIVAL.hardware.controller.makeTracker(scene, 1, null);
         
         
         var addToScene = function (component) {
@@ -437,62 +386,94 @@ window.ExperimentalScene = (function () {
         
         
         
-        CARNIVAL.loadComponent('net.meta4vr.vrui.sys.controller.vive_lowpoly', 'controllercomponent.js')
-        .then(function (controllerComponent) {
-            var c0ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 0, buttonHandler);
-            var c0Projector = CARNIVAL.core.util.makeControllerRayProjector(scene, 0, [floorCollider]);
-            var c1ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 1, buttonHandler);
-            new controllerComponent(
-                {textureLabel:'orange', altTextureLabel:'white', groupLabel:'controllers'}, 
-                [c0ButtonHandlingTracker, c0Projector]
-            ).prepare().then(addToScene);
-            new controllerComponent(
-                {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'}, 
-                [c1ButtonHandlingTracker]
-            ).prepare().then(addToScene);
-            
-            /* It basically works and it's self contained but it needs to tie in with the mesh caching */
-            /* Also you should use this as an opportunity to fully standardise the construction of objects and make things able to be constructed with a JSON */
-        });
+        // CARNIVAL.loadComponent('net.meta4vr.vrui.sys.controller.vive_lowpoly', 'controllercomponent.js')
+        // .then(function (controllerComponent) {
+        //     var c0ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 0, buttonHandler);
+        //     var c0Projector = CARNIVAL.core.util.makeControllerRayProjector(scene, 0, [floorCollider]);
+        //     var c1ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 1, buttonHandler);
+        //     new controllerComponent(
+        //         {textureLabel:'orange', altTextureLabel:'white', groupLabel:'controllers'},
+        //         [c0ButtonHandlingTracker, c0Projector]
+        //     ).prepare().then(addToScene);
+        //     new controllerComponent(
+        //         {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'},
+        //         [c1ButtonHandlingTracker]
+        //     ).prepare().then(addToScene);
+        //
+        //     /* It basically works and it's self contained but it needs to tie in with the mesh caching */
+        //     /* Also you should use this as an opportunity to fully standardise the construction of objects and make things able to be constructed with a JSON */
+        // });
+        
+        var c0ButtonHandlingTracker = CARNIVAL.hardware.controller.makeTracker(scene, 0, buttonHandler);
+        var c0Projector = CARNIVAL.hardware.controller.makeRayProjector(scene, 0, [floorCollider]);
+        var c1ButtonHandlingTracker = CARNIVAL.hardware.controller.makeTracker(scene, 1, buttonHandler);
+        new CARNIVAL.components.controller(
+            {textureLabel:'orange', altTextureLabel:'white', groupLabel:'controllers'}, 
+            [c0ButtonHandlingTracker, c0Projector]
+        ).prepare().then(addToScene);
+        new CARNIVAL.components.controller(
+            {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'}, 
+            [c1ButtonHandlingTracker]
+        ).prepare().then(addToScene);
+        
         
         // showText2('hello', {x:0, y:0, z:0}, {x:0, y:0, z:0}, null, 'textthing');
         // scene.getObjectByLabel('textthing').behaviours.push(scene.trackers.a);
         
         /* Add a facebook icon from a FontAwesome glyph mesh. */
         /* The entire FontAwesome v4.6.3 glyphset is on meshbase, to get the hexcodes google "fontawesome cheat sheet" */
-        CARNIVAL.core.shapeutils.loadMesh('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf230+'.obj')
+        CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf230+'.obj')
         .then(function (mesh) {
-            var fbIcon = new CARNIVAL.core.shapes.MeshShape(mesh, {x:-2.7, y:0.3, z:-3}, {scale:1.0}, null, {materialLabel:'matteplastic'});
+            var fbIcon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:1.0}, null, {materialLabel:'matteplastic'});
             scene.addObject(fbIcon);
         });
         
-        CARNIVAL.loadComponent('net.meta4vr.vrcomponents.arrow', 'testcomponent.js')
-        .then(function (arrowClass) {
-            var arrow = new arrowClass({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
-            scene.addObject(arrow);
-        })
+        // CARNIVAL.loadComponent('net.meta4vr.vrcomponents.arrow', 'testcomponent.js')
+        // .then(function (arrowClass) {
+        //     var arrow = new arrowClass({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
+        //     scene.addObject(arrow);
+        // })
+
+        var arrow = new CARNIVAL.components.arrow({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
+        scene.addObject(arrow);
+
         
-        CARNIVAL.loadComponent('net.meta4vr.vrui.text.glyphtext', 'glyphtextcomponent.js')
-        .then(function (textClass) {
-            // new textClass({
-            //     position: {x:1, y:1, z:3},
-            //     orientation: {x:0, y:Math.PI, z:0},
-            //     text: 'OH HI HELLO HOW ARE YOU'
-            // }).prepare().then(addToScene);
-            
-            new textClass({
-                text: '#virtualreality',
-                position: {x:2, y:0.3, z:3},
-                orientation: {x:0, y:DEG(180), z:0}
-            }).prepare().then(addToScene);
-            
-            new textClass({
-                text: '/meta4vr', 
-                position: {x:-1.7, y:0.3, z:-3}, 
-                orientation: {x:0, y:0, z:0}
-            }).prepare().then(addToScene);
-            
-        })
+        // CARNIVAL.loadComponent('net.meta4vr.vrui.text.glyphtext', 'glyphtextcomponent.js')
+        // .then(function (textClass) {
+        //     // new textClass({
+        //     //     position: {x:1, y:1, z:3},
+        //     //     orientation: {x:0, y:Math.PI, z:0},
+        //     //     text: 'OH HI HELLO HOW ARE YOU'
+        //     // }).prepare().then(addToScene);
+        //
+        //     new textClass({
+        //         text: '#virtualreality',
+        //         position: {x:2, y:0.3, z:3},
+        //         orientation: {x:0, y:DEG(180), z:0}
+        //     }).prepare().then(addToScene);
+        //
+        //     new textClass({
+        //         text: '/meta4vr',
+        //         position: {x:-1.7, y:0.3, z:-3},
+        //         orientation: {x:0, y:0, z:0}
+        //     }).prepare().then(addToScene);
+        //
+        // })
+        
+        /* Some components need to be prepare()d before they can be added to the scene. */
+        
+        new CARNIVAL.components.glyphtext({
+            text: '#virtualreality',
+            position: {x:2, y:0.3, z:3},
+            orientation: {x:0, y:DEG(180), z:0}
+        }).prepare().then(addToScene);
+        
+        new CARNIVAL.components.glyphtext({
+            text: '/meta4vr', 
+            position: {x:-1.7, y:0.3, z:-3}, 
+            orientation: {x:0, y:0, z:0}
+        }).prepare().then(addToScene);
+        
         
         
         var gd1 = new CubeContainer({x:2, y:0, z:1}, {w:0.5, h:0.5, d:0.5}, null, {materialLabel:'matteplastic'});
