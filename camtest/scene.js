@@ -20,24 +20,6 @@ Initialisation procedure for a Scene:
         long time before seeing anything.
 */
 
-
-
-// var DrawableContainer = function (pos, size, rotate, params) {
-//     CARNIVAL.core.primitives.Drawable.call(this, pos, size, rotate, params);
-//     this.parent = [];
-//     this.children = [];
-// }
-//
-// DrawableContainer.prototype = Object.create(CARNIVAL.core.primitives.Drawable.prototype);
-//
-// DrawableContainer.prototype.getChildren = function () {
-//     return this.children;
-// }
-//
-// DrawableContainer.prototype.addChild = function (newChild) {
-//     this.children.push(newChild);
-// }
-
 var CubeContainer = function (pos, size, rotate, params) {
     CARNIVAL.primitive.Container.call(this, pos, size, rotate, params);
     this.invisible = false;
@@ -59,18 +41,6 @@ window.ExperimentalScene = (function () {
         
         var scene = this; /* << Not compulsory but a good habit to have. Increases readability and makes life easier when dealing with a lot of Promises and other scope capturers */
         
-        /* Declare any class and instance vars unique to this scene, here.
-           This constructor is called before the machinery of the engine is fully initialised, so this is the right place for
-           configuration that doesn't depend on other parts of the system, and declaring instance vars which will be filled in later.
-           
-           Prerequisites are things that will be loaded and/or built before the scene setup. The ones defined here will
-           be automatically loaded, and scene setup will be forced to wait until they finish loading, so
-           anything fundamental to the initialization of the scene should be considered a prerequisite.
-           However it is not ideal to make the user wait for too long so be wary of using large
-           downloads as prerequisistes.
-           Each of the items in scene.prerequisites will be mapped into scene.<thingtype>.<label> once built.
-           (Except for colors which are actually just simple textures are are mapped into scene.textures.<label>)
-        */
         scene.prerequisites = {
             shaders: [
                 /* Basic is very simple and doesn't take lighting into account */
@@ -202,6 +172,7 @@ window.ExperimentalScene = (function () {
             var comps = [
                 {ident:'net.meta4vr.vrui.sys.controller.vive_lowpoly', src:'/_components/controllercomponent.js', label:'controller'},
                 {ident:'net.meta4vr.vrcomponents.arrow', src:'/_components/arrowcomponent.js', label:'arrow'},
+                {ident:'net.meta4vr.picboard', src:'/_components/picboardcomponent.js', label:'picboard'},
                 // {ident:'', src:'', label:''},
                 {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'}
             ];
@@ -366,15 +337,7 @@ window.ExperimentalScene = (function () {
                 }
             }
         };
-        
-        /* Building the controllers.
-           A representation of a controller consists of several distinct pieces of visual chrome, and
-           some functions that handle the following tasks:
-               - mapping movement of the real-world controller onto the position and orientation of the models
-               - interpreting presses of buttons
-               - (controller 0) projecting a ray from the controller which "collides" with the floor to determine cursor location
-        */
-        
+                
         /* Build a pair of simple trackers and add them to the scene for later re-use. */
         scene.trackers.a = CARNIVAL.hardware.controller.makeTracker(scene, 0, null);
         scene.trackers.b = CARNIVAL.hardware.controller.makeTracker(scene, 1, null);
@@ -383,27 +346,7 @@ window.ExperimentalScene = (function () {
         var addToScene = function (component) {
             scene.addObject(component);
         }
-        
-        
-        
-        // CARNIVAL.loadComponent('net.meta4vr.vrui.sys.controller.vive_lowpoly', 'controllercomponent.js')
-        // .then(function (controllerComponent) {
-        //     var c0ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 0, buttonHandler);
-        //     var c0Projector = CARNIVAL.core.util.makeControllerRayProjector(scene, 0, [floorCollider]);
-        //     var c1ButtonHandlingTracker = CARNIVAL.core.util.makeGamepadTracker(scene, 1, buttonHandler);
-        //     new controllerComponent(
-        //         {textureLabel:'orange', altTextureLabel:'white', groupLabel:'controllers'},
-        //         [c0ButtonHandlingTracker, c0Projector]
-        //     ).prepare().then(addToScene);
-        //     new controllerComponent(
-        //         {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'},
-        //         [c1ButtonHandlingTracker]
-        //     ).prepare().then(addToScene);
-        //
-        //     /* It basically works and it's self contained but it needs to tie in with the mesh caching */
-        //     /* Also you should use this as an opportunity to fully standardise the construction of objects and make things able to be constructed with a JSON */
-        // });
-        
+                
         var c0ButtonHandlingTracker = CARNIVAL.hardware.controller.makeTracker(scene, 0, buttonHandler);
         var c0Projector = CARNIVAL.hardware.controller.makeRayProjector(scene, 0, [floorCollider]);
         var c1ButtonHandlingTracker = CARNIVAL.hardware.controller.makeTracker(scene, 1, buttonHandler);
@@ -412,13 +355,10 @@ window.ExperimentalScene = (function () {
             [c0ButtonHandlingTracker, c0Projector]
         ).prepare().then(addToScene);
         new CARNIVAL.components.controller(
-            {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'}, 
+            {textureLabel:'royalblue', altTextureLabel:'white', groupLabel:'controllers'},
+            // {texture:CARNIVAL.texture.fromColor({hex:'#0000ff'}), altTextureLabel:'white', groupLabel:'controllers'},
             [c1ButtonHandlingTracker]
         ).prepare().then(addToScene);
-        
-        
-        // showText2('hello', {x:0, y:0, z:0}, {x:0, y:0, z:0}, null, 'textthing');
-        // scene.getObjectByLabel('textthing').behaviours.push(scene.trackers.a);
         
         /* Add a facebook icon from a FontAwesome glyph mesh. */
         /* The entire FontAwesome v4.6.3 glyphset is on meshbase, to get the hexcodes google "fontawesome cheat sheet" */
@@ -428,37 +368,8 @@ window.ExperimentalScene = (function () {
             scene.addObject(fbIcon);
         });
         
-        // CARNIVAL.loadComponent('net.meta4vr.vrcomponents.arrow', 'testcomponent.js')
-        // .then(function (arrowClass) {
-        //     var arrow = new arrowClass({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
-        //     scene.addObject(arrow);
-        // })
-
         var arrow = new CARNIVAL.components.arrow({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
         scene.addObject(arrow);
-
-        
-        // CARNIVAL.loadComponent('net.meta4vr.vrui.text.glyphtext', 'glyphtextcomponent.js')
-        // .then(function (textClass) {
-        //     // new textClass({
-        //     //     position: {x:1, y:1, z:3},
-        //     //     orientation: {x:0, y:Math.PI, z:0},
-        //     //     text: 'OH HI HELLO HOW ARE YOU'
-        //     // }).prepare().then(addToScene);
-        //
-        //     new textClass({
-        //         text: '#virtualreality',
-        //         position: {x:2, y:0.3, z:3},
-        //         orientation: {x:0, y:DEG(180), z:0}
-        //     }).prepare().then(addToScene);
-        //
-        //     new textClass({
-        //         text: '/meta4vr',
-        //         position: {x:-1.7, y:0.3, z:-3},
-        //         orientation: {x:0, y:0, z:0}
-        //     }).prepare().then(addToScene);
-        //
-        // })
         
         /* Some components need to be prepare()d before they can be added to the scene. */
         
