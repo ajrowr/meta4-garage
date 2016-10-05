@@ -510,17 +510,21 @@ window.ExperimentalScene = (function () {
             CARNIVAL.mesh.shunt(mesh, {x:-0.5351, y:-0.4637});
             var camIcon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:0.1}, null, {materialLabel:'matteplastic', label:'camcam'});
             camIcon.behaviours.push(function (drawable, timepoint) {
-                
-                
-                
-                
-                // var cp = CARNIVAL._cameraLockPose;
-                // drawable.pos = {
-                //     x:cp.position[0], y:cp.position[1], z:cp.position[2]
-                // };
                 drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
             })
             scene.addObject(camIcon);
+        });
+
+
+        // CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf06e+'.obj')
+        CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf118+'.obj')
+        .then(function (mesh) {
+            CARNIVAL.mesh.shunt(mesh, {x:-0.5351, y:-0.4637});
+            var eyecon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:0.1}, null, {materialLabel:'matteplastic', label:'camcam'});
+            eyecon.behaviours.push(function (drawable, timepoint) {
+                drawable.matrix = CARNIVAL.engine.poseMat;
+            })
+            scene.addObject(eyecon);
         });
         
         
