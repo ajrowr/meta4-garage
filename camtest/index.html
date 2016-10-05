@@ -35,14 +35,88 @@
             </div>
         </div>
         <div id="cameracontrols">
-            <input type="text" id="cameraUpDegrees" value="32.0"> Camera up degrees<br/>
-            <input type="text" id="cameraDownDegrees" value="32.0"> Camera down degrees<br/>
-            <input type="text" id="cameraLeftDegrees" value="23.0"> Camera left degrees<br/>
-            <input type="text" id="cameraRightDegrees" value="32.0"> Camera right degrees<br/>
-            <input type="text" id="cameraTranslateX" value="0.0"> Camera translate X<br/>
-            <input type="text" id="cameraTranslateY" value="0.0"> Camera translate Y<br/>
-            <input type="text" id="cameraTranslateZ" value="0.0"> Camera translate Z<br/>
+            <!-- 17.5 up/down 22.5 left/right -->
+            <!-- tilt y:7.5 -->
+            <table style="float:left;">
+                <tr>
+                    <td>Camera up degrees</td>
+                    <td><input type="text" id="cameraUpDegrees" value="32.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraUpDegrees', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraUpDegrees', 0.5)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera down degrees</td>
+                    <td><input type="text" id="cameraDownDegrees" value="32.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraDownDegrees', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraDownDegrees', 0.5)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera left degrees</td>
+                    <td><input type="text" id="cameraLeftDegrees" value="23.0" style="width:5em;"></td> <!-- 23?? --> <!-- 32? -->
+                    <td><button onclick="adjustValue('cameraLeftDegrees', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraLeftDegrees', 0.5)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera right degrees</td>
+                    <td><input type="text" id="cameraRightDegrees" value="32.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraRightDegrees', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraRightDegrees', 0.5)">+</button></td>
+                </tr>
+            </table>
+            <table style="float:left;">
+                <tr>
+                    <td>Camera translate X</td>
+                    <td><input type="text" id="cameraTranslateX" value="0.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraTranslateX', -0.005)">-</button></td>
+                    <td><button onclick="adjustValue('cameraTranslateX', 0.005)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera translate Y</td>
+                    <td><input type="text" id="cameraTranslateY" value="0.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraTranslateY', -0.005)">-</button></td>
+                    <td><button onclick="adjustValue('cameraTranslateY', 0.005)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera translate Z</td>
+                    <td><input type="text" id="cameraTranslateZ" value="0.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraTranslateZ', -0.005)">-</button></td>
+                    <td><button onclick="adjustValue('cameraTranslateZ', 0.005)">+</button></td>
+                </tr>
+            </table>
+            <table style="float:left;">
+                <tr>
+                    <td>Camera tilt X</td>
+                    <td><input type="text" id="cameraTiltX" value="0.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraTiltX', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraTiltX', 0.5)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera tilt Y</td>
+                    <td><input type="text" id="cameraTiltY" value="0.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraTiltY', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraTiltY', 0.5)">+</button></td>
+                </tr>
+                <tr>
+                    <td>Camera tilt Z</td>
+                    <td><input type="text" id="cameraTiltZ" value="0.0" style="width:5em;"></td>
+                    <td><button onclick="adjustValue('cameraTiltZ', -0.5)">-</button></td>
+                    <td><button onclick="adjustValue('cameraTiltZ', 0.5)">+</button></td>
+                </tr>
+                
+            </table>
         </div>
+        <div>
+            <!-- <img src="http://domai.io.codex.cx/quick/sunrise1.jpg" id="sunrise1" crossorigin="anonymous" style="height:100px;">
+            <img src="http://domai.io.codex.cx/quick/sunrise2.jpg" id="sunrise2" crossorigin="anonymous" style="height:100px;"> -->
+            <video id="videoElem" width="100">
+            </video>
+        </div>
+        
+        <c-scene>
+            <c-material></c-material>
+            <c-component></c-component>
+            <c-arrow position="2 2 2" orientation="0 0 0" material-label="matteplastic"></c-arrow>
+        </c-scene>
         
         <script>
         window.vrScene = new ExperimentalScene();
@@ -68,6 +142,11 @@
         window.updateReadout = function (readoutIdent, newValue) {
             var readoutElem = document.getElementById('readout' + readoutIdent);
             readoutElem.value = newValue;
+        }
+        
+        window.adjustValue = function (elemId, delta) {
+            var elem = document.getElementById(elemId);
+            elem.value = parseFloat(elem.value) + delta;
         }
 
         

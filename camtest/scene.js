@@ -174,6 +174,7 @@ window.ExperimentalScene = (function () {
                 {ident:'net.meta4vr.vrcomponents.arrow', src:'/_components/arrowcomponent.js', label:'arrow'},
                 {ident:'net.meta4vr.picboard', src:'/_components/picboardcomponent.js', label:'picboard'},
                 // {ident:'', src:'', label:''},
+                {ident:'net.meta4vr.textboard', src:'/_components/textboardcomponent.js', label:'textboard'},
                 {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'}
             ];
             for (var i = 0; i < comps.length; i++) {
@@ -326,6 +327,36 @@ window.ExperimentalScene = (function () {
                 /* Dump controller location on trigger */
                 else if (btnIdx == 1 && btnStatus == 'pressed') {
                     console.log(scene.playerSpatialState.hands[gamepadIdx].pos);
+                    
+                    
+                    var vrGamepads = CARNIVAL.hardware.controller.getMotionControllers();
+                    var myGp = vrGamepads[gamepadIdx];
+                    var gPose = myGp.pose;
+                    if (!(gPose && gPose.orientation && gPose.position)) return; /* Pose is missing or incomplete, not much we can do! */
+                    var gpMat = mat4.create();
+                    // var orientation = gPose.orientation;
+                    // var position = gPose.
+                    if (window.vrDisplay.stageParameters) {
+                        mat4.fromRotationTranslation(gpMat, gPose.orientation, gPose.position);
+                        mat4.multiply(gpMat, vrDisplay.stageParameters.sittingToStandingTransform, gpMat);
+                    
+                        var ploc = scene.playerLocation;
+                        var trans = vec3.fromValues(ploc.x, ploc.y, ploc.z);
+                        var reloc = mat4.create();
+                        mat4.fromTranslation(reloc, trans);
+                        mat4.mul(gpMat, reloc, gpMat);
+                    
+                    }
+                    var pospos = vec3.create();
+                    mat4.getTranslation(pospos, gpMat);
+                    console.log(pospos);
+                    
+                    
+                    
+                    
+                    if (gamepadIdx == 1) {
+                        CARNIVAL._cameraLocked = !CARNIVAL._cameraLocked;
+                    }
                 }
                 /* Teleport user */
                 else if (btnIdx == 2 && btnStatus == 'pressed') {
@@ -368,7 +399,8 @@ window.ExperimentalScene = (function () {
             scene.addObject(fbIcon);
         });
         
-        var arrow = new CARNIVAL.components.arrow({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
+        // var arrow = new CARNIVAL.components.arrow({x:0, y:0, z:2}, {height: 0.1, scale:0.25});
+        var arrow = new CARNIVAL.components.arrow({position:{x:0, y:0, z:2}, size:{height: 0.1, scale:0.25}});
         scene.addObject(arrow);
         
         /* Some components need to be prepare()d before they can be added to the scene. */
@@ -402,8 +434,171 @@ window.ExperimentalScene = (function () {
         // scene.sceneGraph = gd1;
         scene.addObject(gd1);
         
+        var textboard = new CARNIVAL.components.textboard({
+            position: {x:-3, y:0, z: 3},
+            orientation: {x:0, y:DEG(180), z:0},
+            width: 3,
+            height: 2,
+            // transparentBackground: true,
+            // backgroundColor: 'rgba(127,127,127,0.89)',
+            textLines: [
+                {text:'hello'},
+                {text:'how are you'},
+                {text:'I am a text board'},
+                {text:'how may I be of service?'},
+                {font:'times new roman', textColor:'orange'},
+                {text:'how are you'}
+            ]
+        });
+        textboard.prepare().then(addToScene);
+        window.TXB = textboard;
         
+        
+        /* Construct from JSON */
+        var jj = {
+            objects: [
+                // {component:'textboard', parameters: {position:{x:1, y:1, z:-1}, orientation:{x:0, y:3.14, z:0}, textLines: [{text:'hi'}]}},
+                {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}}
+            ]
+        }
+        
+        for (var i = 0; i < jj.objects.length; i++) {
+            var oinf = jj.objects[i];
+            var o = new CARNIVAL.components[oinf.component](oinf.parameters);
+            o.prepare().then(addToScene);
+        }
+        
+        /* Construct from markup */
+        var mksc = document.querySelector('c-scene');
+        var elementMap = {
+            'C-ARROW': CARNIVAL.components.arrow
+        };
+        if (mksc) {
+            for (var i = 0; i < mksc.children.length; i++) {
+                var thingelem = mksc.children[i];
+                console.log(thingelem);
+                var thingclass = elementMap[thingelem.tagName];
+                console.log(thingclass);
+                if (!thingclass) continue;
+                
+                var thinginf = {};
+                var g = function (attrName, splitBy) {
+                    var dat = thingelem.getAttribute(attrName);
+                    if (splitBy && dat) {
+                        dat = dat.split(splitBy);
+                    }
+                    return dat;
+                }
+                
+                var posraw = g('position', ' ');
+                if (posraw) thinginf.position = {x:posraw[0], y:posraw[1], z:posraw[2]};
+                var oriraw = g('orientation', ' ');
+                if (oriraw) thinginf.orientation = {x:oriraw[0], y:oriraw[1], z:oriraw[2]};
+                var mlabelraw = g('material-label');
+                if (mlabelraw) thinginf.materialLabel = mlabelraw;
+                
+                var obj = new thingclass(thinginf);
+                console.log(thinginf);
+                obj.prepare().then(addToScene);
+            }
+        }
+        
+        
+        
+        CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf030+'.obj')
+        .then(function (mesh) {
+            CARNIVAL.mesh.shunt(mesh, {x:-0.5351, y:-0.4637});
+            var camIcon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:0.1}, null, {materialLabel:'matteplastic', label:'camcam'});
+            camIcon.behaviours.push(function (drawable, timepoint) {
+                
+                
+                
+                
+                // var cp = CARNIVAL._cameraLockPose;
+                // drawable.pos = {
+                //     x:cp.position[0], y:cp.position[1], z:cp.position[2]
+                // };
+                drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
+            })
+            scene.addObject(camIcon);
+        });
+        
+        
+        /* Pose as physically captured from the camera, a vec3 and a quat */
+        /* NOTE that this is nonsense in real world terms because it's pre-sittingToStanding transform */
+        CARNIVAL.setCameraLockPose({
+            // orientation: [0.022, 0.981, 0.002, 0.191],
+            // position: [1.501, 0.141, -0.409]
+            // position: [0.001, 0.141, -0.409]
+            position: [-0.0198, 0.3344, 2.122],
+            orientation: [0.0291, -0.921, 0.034, 0.3867]
+        });
+        CARNIVAL.setCameraParams({
+            fov: {up:15, down:15, left:22.5, right:22.5},
+            translate: {x:0, y:0, z:0},
+            tilt: {x:0, y:180, z:0.0}
+        })
+        
+        
+        scene.where = {
+            x:3
+        };
+        
+        
+
+    
+    
+    Scene.prototype.TESTvidInit = function (elem) {
+        var elem = document.getElementById('videoElem');
+        elem.addEventListener('canplaythrough', startVideo, true);
+        elem.addEventListener('ended', videoDone, true);
+        elem.preload = 'auto';
+        elem.crossOrigin = 'anonymous';
+        elem.src = 'http://domai.io.codex.cx/quick/olivia1.webm';
+        
+        var gl = CARNIVAL.engine.gl;
+        var tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        
+        function updateTexture() {
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, elem);
+        }
+        
+        var intervalId = null;
+        function startVideo() {
+            elem.play();
+            intervalId = window.setInterval(updateTexture, 15);
+            
+        }
+        
+        function videoDone() {
+            window.clearInterval(intervalId);
+        }
+        
+        return tex;
     }
+    
+    Scene.prototype.TESTimage = function (elem) {
+        var scene = this;
+        var gl = CARNIVAL.engine.gl;
+        var tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        
+        // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, elem);
+        return tex;
+    }
+
 
     return Scene;
 })();
