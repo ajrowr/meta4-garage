@@ -10,6 +10,7 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
         this.dataSource = p.dataSource || null;
         this.dataIndex = p.dataIndex || -1; /* -1 means random */
         this.src = p.src || null;
+        this.shaderLabel = p.shaderLabel || null; /* Since we may sometimes want to use an alternate shader */
         
         this._calcDims = (function (par) {
             if (par.targetHeight) {

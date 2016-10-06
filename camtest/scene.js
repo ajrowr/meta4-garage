@@ -175,7 +175,8 @@ window.ExperimentalScene = (function () {
                 {ident:'net.meta4vr.picboard', src:'/_components/picboardcomponent.js', label:'picboard'},
                 // {ident:'', src:'', label:''},
                 {ident:'net.meta4vr.textboard', src:'/_components/textboardcomponent.js', label:'textboard'},
-                {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'}
+                {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'},
+                {ident:'net.meta4vr.cameradummy', src:'/_components/cameradisplaycomponent.js', label:'cameradummy'}
             ];
             for (var i = 0; i < comps.length; i++) {
                 var c = comps[i];
@@ -504,17 +505,6 @@ window.ExperimentalScene = (function () {
         }
         
         
-        /* Cam icon */
-        CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf030+'.obj')
-        .then(function (mesh) {
-            CARNIVAL.mesh.shunt(mesh, {x:-0.5351, y:-0.3237});
-            var camIcon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:0.1}, null, {materialLabel:'matteplastic', label:'camcam'});
-            camIcon.behaviours.push(function (drawable, timepoint) {
-                drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
-            });
-            scene.addObject(camIcon);
-        });
-
 
         /* Face icon */
         // CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf06e+'.obj')
@@ -527,6 +517,20 @@ window.ExperimentalScene = (function () {
             });
             scene.addObject(eyecon);
         });
+
+
+        /* Cam icon */
+        /* Hmm. Scale 0.1 worked well for this when it wasn't part of a container. But now it makes it very small. */
+        // CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf030+'.obj')
+        // .then(function (mesh) {
+        //     CARNIVAL.mesh.shunt(mesh, {x:-0.5351, y:-0.3237});
+        //     var camIcon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:0.1}, null, {materialLabel:'matteplastic', label:'camcam'});
+        //     camIcon.behaviours.push(function (drawable, timepoint) {
+        //         drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
+        //     });
+        //     scene.addObject(camIcon);
+        // });
+
         
         
         /* try showing the camera frustum */
@@ -538,46 +542,59 @@ window.ExperimentalScene = (function () {
         
         
         /* TODO lathes are fucking confusing to set up. FIX IT */
-        var camthingLength = 10;
-        var camFov = CARNIVAL.engine.viewports.cam4.getEyeParameters().fieldOfView;
-        var camthingAngle = DEG(Math.max(camFov.downDegrees, camFov.downDegrees, camFov.leftDegrees, camFov.rightDegrees));
-        var camthing = new CARNIVAL.shape.LatheExtruder(
-            {x:0, y:0, z:2.5}, {height:camthingLength , scale: 1}, {x:0, y:0, z:0}, {
-                shape: {
-                    pointCount: 8,
-                    sampler: CARNIVAL.shape.LatheExtruder.prototype.shapeSamplers.Circle() // << ugh so wordy TODO
-                },
-                profile: {
-                    /* At max camthingLength we want the shape to be N degrees offset */
-                    sampler: function (j,n) {
-                        var frac = j/n;
-                        var opp = camthingLength * Math.tan(camthingAngle);
-                        // return 1;
-                        // console.log(frac);
-                        // return Math.random();
-                        return frac * opp;
-                    },
-                    segmentCount: 5
-                },
-                materialLabel: 'matteplastic',
-                textureLabel: 'orange'
-            }
-        );
-        camthing.drawMode = 1; //lines
-        // camthing.rotation = {x:270, y:0, z:0};
-        camthing.behaviours.push(function (drawable, timepoint) {
-            /// var qq = quat.create();
-            ///CARNIVAL.util.rotateMatrixBy({x:DEG(90)})
-            /// quat.rotateX(qq, DEG(90));
-            var r1 = mat4.create();
-            mat4.fromXRotation(r1, DEG(270));
-            mat4.mul(r1, CARNIVAL.engine.viewports.cam4.getPose(), r1);
-            /// drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
-            drawable.matrix = r1;
-        })
+        // var camthingLength = 10;
+        // var camFov = CARNIVAL.engine.viewports.cam4.getEyeParameters().fieldOfView;
+        // var camthingAngle = DEG(Math.max(camFov.downDegrees, camFov.downDegrees, camFov.leftDegrees, camFov.rightDegrees));
+        // var camthing = new CARNIVAL.shape.LatheExtruder(
+        //     {x:0, y:0, z:2.5}, {height:camthingLength , scale: 1}, {x:0, y:0, z:0}, {
+        //         shape: {
+        //             pointCount: 8,
+        //             sampler: CARNIVAL.shape.LatheExtruder.prototype.shapeSamplers.Circle() // << ugh so wordy TODO
+        //         },
+        //         profile: {
+        //             /* At max camthingLength we want the shape to be N degrees offset */
+        //             sampler: function (j,n) {
+        //                 var frac = j/n;
+        //                 var opp = camthingLength * Math.tan(camthingAngle);
+        //                 // return 1;
+        //                 // console.log(frac);
+        //                 // return Math.random();
+        //                 return frac * opp;
+        //             },
+        //             segmentCount: 5
+        //         },
+        //         materialLabel: 'matteplastic',
+        //         textureLabel: 'orange'
+        //     }
+        // );
+        // camthing.drawMode = 1; //lines
+        // // camthing.rotation = {x:270, y:0, z:0};
+        // camthing.behaviours.push(function (drawable, timepoint) {
+        //     /// var qq = quat.create();
+        //     ///CARNIVAL.util.rotateMatrixBy({x:DEG(90)})
+        //     /// quat.rotateX(qq, DEG(90));
+        //     var r1 = mat4.create();
+        //     mat4.fromXRotation(r1, DEG(270));
+        //     mat4.mul(r1, CARNIVAL.engine.viewports.cam4.getPose(), r1);
+        //     /// drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
+        //     drawable.matrix = r1;
+        // })
+        //
+        // scene.addObject(camthing);
+        // window.CAMTHING = camthing;
         
-        scene.addObject(camthing);
-        window.CAMTHING = camthing;
+        
+        // CARNIVAL.loadComponent('net.meta4vr.cameradummy', '/_components/cameradisplaycomponent.js', 'cameradummy')
+        // .then(function (cdum) {
+        //     console.log('camdummy');
+        //     // window.CDUM = cdum;
+        //     var camdummy = new CARNIVAL.components.cameradummy();
+        //     camdummy.prepare().then(addToScene);
+        //     window.CDUM = camdummy;
+        // })
+        
+        var camdummy = new CARNIVAL.components.cameradummy({attachTo:'cam4'});
+        camdummy.prepare().then(addToScene);
         
         
         
