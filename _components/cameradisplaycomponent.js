@@ -24,7 +24,7 @@ CARNIVAL.registerComponent('net.meta4vr.cameradummy', function () {
         var camdummy = this;
         var camthingLength = 10;
         var camFov = CARNIVAL.engine.viewports.cam4.getEyeParameters().fieldOfView;
-        var camthingAngle = DEG(Math.max(camFov.downDegrees, camFov.downDegrees, camFov.leftDegrees, camFov.rightDegrees));
+        var camthingAngle = DEG(Math.min(camFov.downDegrees, camFov.downDegrees, camFov.leftDegrees, camFov.rightDegrees));
         camdummy.projection = new CARNIVAL.shape.LatheExtruder(
             null, {height:camthingLength , scale: 1}, null, {
                 shape: {

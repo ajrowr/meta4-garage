@@ -401,22 +401,22 @@ window.ExperimentalScene = (function () {
         });
         
         // var arrow = new CARNIVAL.components.arrow({x:0, y:0, z:2}, {height: 0.1, scale:0.25});
-        var arrow = new CARNIVAL.components.arrow({position:{x:0, y:0, z:2}, size:{height: 0.1, scale:0.25}});
-        scene.addObject(arrow);
+        // var arrow = new CARNIVAL.components.arrow({position:{x:0, y:0, z:2}, size:{height: 0.1, scale:0.25}});
+        // scene.addObject(arrow);
         
-        /* Some components need to be prepare()d before they can be added to the scene. */
+        /* Not all components strictly need to be prepare()d before adding to the scene, but it's the proper way to do it. */
         
-        new CARNIVAL.components.glyphtext({
-            text: '#virtualreality',
-            position: {x:2, y:0.3, z:3},
-            orientation: {x:0, y:DEG(180), z:0}
-        }).prepare().then(addToScene);
+        // new CARNIVAL.components.glyphtext({
+        //     text: '#virtualreality',
+        //     position: {x:2, y:0.3, z:3},
+        //     orientation: {x:0, y:DEG(180), z:0}
+        // }).prepare().then(addToScene);
         
-        new CARNIVAL.components.glyphtext({
-            text: '/meta4vr', 
-            position: {x:-1.7, y:0.3, z:-3}, 
-            orientation: {x:0, y:0, z:0}
-        }).prepare().then(addToScene);
+        // new CARNIVAL.components.glyphtext({
+        //     text: '/meta4vr',
+        //     position: {x:-1.7, y:0.3, z:-3},
+        //     orientation: {x:0, y:0, z:0}
+        // }).prepare().then(addToScene);
         
         
         
@@ -434,37 +434,51 @@ window.ExperimentalScene = (function () {
         gd1c.addChild(gd1c2);
         // scene.sceneGraph = gd1;
         scene.addObject(gd1);
-        
-        var textboard = new CARNIVAL.components.textboard({
-            position: {x:-6, y:0, z: 0},
-            orientation: {x:0, y:DEG(90), z:0},
-            width: 3,
-            height: 2,
-            // transparentBackground: true,
-            // backgroundColor: 'rgba(127,127,127,0.89)',
-            textLines: [
-                {text:'hello'},
-                {text:'how are you'},
-                {text:'I am a text board'},
-                {text:'how may I be of service?'},
-                {font:'times new roman', textColor:'orange'},
-                {text:'how are you'}
-            ]
-        });
-        textboard.prepare().then(addToScene);
-        window.TXB = textboard;
-        
-        
+                
         /* Construct from JSON */
-        var jj = {
+        var scenedef = {
             objects: [
                 // {component:'textboard', parameters: {position:{x:1, y:1, z:-1}, orientation:{x:0, y:3.14, z:0}, textLines: [{text:'hi'}]}},
-                {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}}
+                {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}},
+                {component:'cameradummy', parameters: {attachTo:'cam4'}},
+                {component:'textboard', parameters: {
+                    position: {x:-6, y:0, z: 0},
+                    orientation: {x:0, y:DEG(90), z:0},
+                    width: 3,
+                    height: 2,
+                    // transparentBackground: true,
+                    // backgroundColor: 'rgba(127,127,127,0.89)',
+                    textLines: [
+                        {text:'hello'},
+                        {text:'how are you'},
+                        {text:'I am a text board'},
+                        {text:'how may I be of service?'},
+                        {font:'times new roman', textColor:'orange'},
+                        {text:'how are you'}
+                    ]
+        
+                }},
+                {component: 'arrow', parameters: {
+                    position:{x:0, y:0, z:2}, 
+                    size:{height: 0.1, scale:0.25}
+                }},
+                {component:'glyphtext', parameters: {
+                    text: '#virtualreality',
+                    position: {x:2, y:0.3, z:3},
+                    orientation: {x:0, y:DEG(180), z:0}
+                }},
+                {component:'glyphtext', parameters: {
+                    text: '/meta4vr', 
+                    position: {x:-1.7, y:0.3, z:-3}, 
+                    orientation: {x:0, y:0, z:0}
+                }}
+                
+                
             ]
         }
         
-        for (var i = 0; i < jj.objects.length; i++) {
-            var oinf = jj.objects[i];
+        for (var i = 0; i < scenedef.objects.length; i++) {
+            var oinf = scenedef.objects[i];
             var o = new CARNIVAL.components[oinf.component](oinf.parameters);
             o.prepare().then(addToScene);
         }
@@ -518,83 +532,8 @@ window.ExperimentalScene = (function () {
             scene.addObject(eyecon);
         });
 
-
-        /* Cam icon */
-        /* Hmm. Scale 0.1 worked well for this when it wasn't part of a container. But now it makes it very small. */
-        // CARNIVAL.mesh.load('//meshbase.meta4vr.net/_typography/fontawesome/glyph_'+0xf030+'.obj')
-        // .then(function (mesh) {
-        //     CARNIVAL.mesh.shunt(mesh, {x:-0.5351, y:-0.3237});
-        //     var camIcon = new CARNIVAL.mesh.Mesh(mesh, {x:-2.7, y:0.3, z:-3}, {scale:0.1}, null, {materialLabel:'matteplastic', label:'camcam'});
-        //     camIcon.behaviours.push(function (drawable, timepoint) {
-        //         drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
-        //     });
-        //     scene.addObject(camIcon);
-        // });
-
-        
-        
-        /* try showing the camera frustum */
-        // var pmat = mat4.create();
-        // mat4.perspectiveFromFieldOfView(pmat, CARNIVAL.engine.viewports.cam4.getEyeParameters().fieldOfView, 0.1, 1024.0);
-        // var qb1 = new CARNIVAL.shape.Cuboid({x:0, y:1, z:0}, {w:0.2, h:0.2, d:0.2}, null, {materialLabel:'matteplastic', textureLabel:'orange'});
-        // qb1.matrix = pmat;
-        // scene.addObject(qb1);
-        
-        
-        /* TODO lathes are fucking confusing to set up. FIX IT */
-        // var camthingLength = 10;
-        // var camFov = CARNIVAL.engine.viewports.cam4.getEyeParameters().fieldOfView;
-        // var camthingAngle = DEG(Math.max(camFov.downDegrees, camFov.downDegrees, camFov.leftDegrees, camFov.rightDegrees));
-        // var camthing = new CARNIVAL.shape.LatheExtruder(
-        //     {x:0, y:0, z:2.5}, {height:camthingLength , scale: 1}, {x:0, y:0, z:0}, {
-        //         shape: {
-        //             pointCount: 8,
-        //             sampler: CARNIVAL.shape.LatheExtruder.prototype.shapeSamplers.Circle() // << ugh so wordy TODO
-        //         },
-        //         profile: {
-        //             /* At max camthingLength we want the shape to be N degrees offset */
-        //             sampler: function (j,n) {
-        //                 var frac = j/n;
-        //                 var opp = camthingLength * Math.tan(camthingAngle);
-        //                 // return 1;
-        //                 // console.log(frac);
-        //                 // return Math.random();
-        //                 return frac * opp;
-        //             },
-        //             segmentCount: 5
-        //         },
-        //         materialLabel: 'matteplastic',
-        //         textureLabel: 'orange'
-        //     }
-        // );
-        // camthing.drawMode = 1; //lines
-        // // camthing.rotation = {x:270, y:0, z:0};
-        // camthing.behaviours.push(function (drawable, timepoint) {
-        //     /// var qq = quat.create();
-        //     ///CARNIVAL.util.rotateMatrixBy({x:DEG(90)})
-        //     /// quat.rotateX(qq, DEG(90));
-        //     var r1 = mat4.create();
-        //     mat4.fromXRotation(r1, DEG(270));
-        //     mat4.mul(r1, CARNIVAL.engine.viewports.cam4.getPose(), r1);
-        //     /// drawable.matrix = CARNIVAL.engine.viewports.cam4.getPose();
-        //     drawable.matrix = r1;
-        // })
-        //
-        // scene.addObject(camthing);
-        // window.CAMTHING = camthing;
-        
-        
-        // CARNIVAL.loadComponent('net.meta4vr.cameradummy', '/_components/cameradisplaycomponent.js', 'cameradummy')
-        // .then(function (cdum) {
-        //     console.log('camdummy');
-        //     // window.CDUM = cdum;
-        //     var camdummy = new CARNIVAL.components.cameradummy();
-        //     camdummy.prepare().then(addToScene);
-        //     window.CDUM = camdummy;
-        // })
-        
-        var camdummy = new CARNIVAL.components.cameradummy({attachTo:'cam4'});
-        camdummy.prepare().then(addToScene);
+        // var camdummy = new CARNIVAL.components.cameradummy({attachTo:'cam4'});
+        // camdummy.prepare().then(addToScene);
         
         
         
