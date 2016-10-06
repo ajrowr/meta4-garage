@@ -220,6 +220,14 @@ window.ExperimentalScene = (function () {
         return lamps;
     }
     
+    Scene.prototype.attachToController = function (thing, controller) {
+        thing.addBehavior(this.trackers.a, 'ctrl');
+    }
+    
+    Scene.prototype.detachFromController = function (thing) {
+        thing.removeBehavior('ctrl');
+    }
+    
     Scene.prototype.setupScene = function () {
         var scene = this;
         var _hidden = function () {return {x:0, y:-100, z:0};} /* For things that get positioned dynamically eg cursor and controller trackers */
@@ -457,6 +465,11 @@ window.ExperimentalScene = (function () {
                         {text:'how are you'}
                     ]
         
+                }},
+                {component:'textboard', parameters: {
+                    width: 0.3, height: 0.1, textLines: [{text:'hello!!!!'}], textScale: 0.4, label: 'TEXTY',
+                    position: {x: 0.1914, y:0.8169, z:1.62},
+                    rotationQuaternion: [0.217, 0.968, -0.117, 0.0359]
                 }},
                 {component: 'arrow', parameters: {
                     position:{x:0, y:0, z:2}, 
