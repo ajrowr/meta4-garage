@@ -174,7 +174,7 @@ window.ExperimentalScene = (function () {
                 {ident:'net.meta4vr.vrcomponents.arrow', src:'/_components/arrowcomponent.js', label:'arrow'},
                 {ident:'net.meta4vr.picboard', src:'/_components/picboardcomponent.js', label:'picboard'},
                 // {ident:'', src:'', label:''},
-                {ident:'net.meta4vr.textboard', src:'/_components/textboardcomponent.js', label:'textboard'},
+                {ident:'net.meta4vr.textboard', src:'/_components/textboard2component.js', label:'textboard'},
                 {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'},
                 {ident:'net.meta4vr.cameradummy', src:'/_components/cameradisplaycomponent.js', label:'cameradummy'}
             ];
@@ -221,11 +221,33 @@ window.ExperimentalScene = (function () {
     }
     
     Scene.prototype.attachToController = function (thing, controller) {
+        thing.pos = {x:0, y:0, z:0}; /* strip its current location since that's gonna be an issue */
         thing.addBehavior(this.trackers.a, 'ctrl');
     }
     
     Scene.prototype.detachFromController = function (thing) {
         thing.removeBehavior('ctrl');
+    }
+    
+    Scene.prototype.serializeSceneObjects = function () {
+        var scene = this;
+        var serials = [];
+        for (var i = 0; i < scene.sceneObjects.length; i++) {
+            var o = scene.sceneObjects[i];
+            if (o.serialize) {
+                serials.push(o.serialize());
+            }
+        }
+        return serials;
+    }
+    
+    Scene.prototype.unpackSceneObjects = function (dat) {
+        var scene = this;
+        for (var i = 0; i < dat.length; i++) {
+            var inf = dat[i];
+            var obj = new CARNIVAL.components[inf.component](inf);
+            obj.prepare().then(function (o) {scene.addObject(o);});
+        }
     }
     
     Scene.prototype.setupScene = function () {
@@ -449,28 +471,28 @@ window.ExperimentalScene = (function () {
                 // {component:'textboard', parameters: {position:{x:1, y:1, z:-1}, orientation:{x:0, y:3.14, z:0}, textLines: [{text:'hi'}]}},
                 {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}},
                 {component:'cameradummy', parameters: {attachTo:'cam4'}},
-                {component:'textboard', parameters: {
-                    position: {x:-6, y:0, z: 0},
-                    orientation: {x:0, y:DEG(90), z:0},
-                    width: 3,
-                    height: 2,
-                    // transparentBackground: true,
-                    // backgroundColor: 'rgba(127,127,127,0.89)',
-                    textLines: [
-                        {text:'hello'},
-                        {text:'how are you'},
-                        {text:'I am a text board'},
-                        {text:'how may I be of service?'},
-                        {font:'times new roman', textColor:'orange'},
-                        {text:'how are you'}
-                    ]
-        
-                }},
-                {component:'textboard', parameters: {
-                    width: 0.3, height: 0.1, textLines: [{text:'hello!!!!'}], textScale: 0.4, label: 'TEXTY',
-                    position: {x: 0.1914, y:0.8169, z:1.62},
-                    rotationQuaternion: [0.217, 0.968, -0.117, 0.0359]
-                }},
+                // {component:'textboard', parameters: {
+                //     position: {x:-6, y:0, z: 0},
+                //     orientation: {x:0, y:DEG(90), z:0},
+                //     width: 3,
+                //     height: 2,
+                //     // transparentBackground: true,
+                //     // backgroundColor: 'rgba(127,127,127,0.89)',
+                //     textLines: [
+                //         {text:'hello'},
+                //         {text:'how are you'},
+                //         {text:'I am a text board'},
+                //         {text:'how may I be of service?'},
+                //         {font:'times new roman', textColor:'orange'},
+                //         {text:'how are you'}
+                //     ]
+                //
+                // }},
+                // {component:'textboard', parameters: {
+                //     width: 0.3, height: 0.1, textLines: [{text:'hello!!!!'}], textScale: 0.4, label: 'TEXTY',
+                //     position: {x: 0.1914, y:0.8169, z:1.62},
+                //     rotationQuaternion: [0.217, 0.968, -0.117, 0.0359]
+                // }},
                 {component: 'arrow', parameters: {
                     position:{x:0, y:0, z:2}, 
                     size:{height: 0.1, scale:0.25}
@@ -495,6 +517,44 @@ window.ExperimentalScene = (function () {
             var o = new CARNIVAL.components[oinf.component](oinf.parameters);
             o.prepare().then(addToScene);
         }
+
+        // {
+        //     component: 'textboard',
+        //     label: 'tx1',
+        //     draw: {},
+        //     physics: {},
+        //     config: {},
+        //     input: {}
+        // }
+
+        
+        var sd2 = {
+            objects: [
+                {
+                    component: 'textboard', 
+                    label: 'TEXTY', 
+                    draw: {
+                        position: {x: 0.1914, y:0.8169, z:1.62},
+                        rotationQuaternion: [0.217, 0.968, -0.117, 0.0359],
+                        size: {
+                            width: 0.3,
+                            height: 0.1
+                        },
+                        materialLabel: 'matteplastic',
+                        textureLabel: 'orange'
+                    },
+                    physics: {},
+                    config: {
+                        textScale: 0.4
+                    },
+                    input: {
+                        textLines: [{text:'hello!!!!'}]
+                    }
+                }
+            ]
+        }
+        var txt = new CARNIVAL.components.textboard(sd2.objects[0]);
+        txt.prepare().then(addToScene);
         
         /* Construct from markup */
         var mksc = document.querySelector('c-scene');

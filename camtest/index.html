@@ -157,6 +157,15 @@
         CARNIVAL.addScene(window.vrScene);
         CARNIVAL.start();
         window.S = window.vrScene;
+        
+        var capscene = function () {
+            document.location.hash = btoa(JSON.stringify(S.serializeSceneObjects()));
+        }
+        
+        var loadscene = function () {
+            S.unpackSceneObjects(JSON.parse(atob(document.location.hash.slice(1))));
+        }
+        
         // CARNIVAL.loadComponent('net.meta4vr.vrcomponents.arrow', 'testcomponent.js')
         // .then(function (arrowClass) {
         //     var arrow = new arrowClass({x:0, y:0, z:2}, {height: 0.5, scale:0.5});
