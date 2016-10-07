@@ -174,8 +174,9 @@ window.ExperimentalScene = (function () {
                 {ident:'net.meta4vr.vrcomponents.arrow', src:'/_components/arrowcomponent.js', label:'arrow'},
                 {ident:'net.meta4vr.picboard', src:'/_components/picboardcomponent.js', label:'picboard'},
                 // {ident:'', src:'', label:''},
-                {ident:'net.meta4vr.textboard', src:'/_components/textboard2component.js', label:'textboard'},
-                {ident:'net.meta4vr.vrui.text.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'},
+                {ident:'net.meta4vr.textboard', src:'/_components/textboardcomponent.js', label:'textboard'},
+                {ident:'net.meta4vr.glyphtext', src:'/_components/glyphtextcomponent.js', label:'glyphtext'},
+                {ident:'net.meta4vr.meshbasemesh', src:'/_components/meshbasemeshcomponent.js', label:'meshbasemesh'},
                 {ident:'net.meta4vr.cameradummy', src:'/_components/cameradisplaycomponent.js', label:'cameradummy'}
             ];
             for (var i = 0; i < comps.length; i++) {
@@ -234,7 +235,7 @@ window.ExperimentalScene = (function () {
         var serials = [];
         for (var i = 0; i < scene.sceneObjects.length; i++) {
             var o = scene.sceneObjects[i];
-            if (o.serialize) {
+            if (o.serialize && o.shouldSerialize) {
                 serials.push(o.serialize());
             }
         }
@@ -497,16 +498,16 @@ window.ExperimentalScene = (function () {
                     position:{x:0, y:0, z:2}, 
                     size:{height: 0.1, scale:0.25}
                 }},
-                {component:'glyphtext', parameters: {
-                    text: '#virtualreality',
-                    position: {x:2, y:0.3, z:3},
-                    orientation: {x:0, y:DEG(180), z:0}
-                }},
-                {component:'glyphtext', parameters: {
-                    text: '/meta4vr', 
-                    position: {x:-1.7, y:0.3, z:-3}, 
-                    orientation: {x:0, y:0, z:0}
-                }}
+                // {component:'glyphtext', parameters: {
+                //     text: '#virtualreality',
+                //     position: {x:2, y:0.3, z:3},
+                //     orientation: {x:0, y:DEG(180), z:0}
+                // }},
+                // {component:'glyphtext', parameters: {
+                //     text: '/meta4vr',
+                //     position: {x:-1.7, y:0.3, z:-3},
+                //     orientation: {x:0, y:0, z:0}
+                // }}
                 
                 
             ]
@@ -527,34 +528,126 @@ window.ExperimentalScene = (function () {
         //     input: {}
         // }
 
+        // {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}},
+
         
         var sd2 = {
             objects: [
                 {
-                    component: 'textboard', 
-                    label: 'TEXTY', 
+                    component: 'textboard',
+                    label: 'STATUSBOARD',
                     draw: {
-                        position: {x: 0.1914, y:0.8169, z:1.62},
-                        rotationQuaternion: [0.217, 0.968, -0.117, 0.0359],
+                        position: {x:-6, y:0, z: 0},
+                        orientation: {x:0, y:DEG(90), z:0},
                         size: {
-                            width: 0.3,
-                            height: 0.1
-                        },
-                        materialLabel: 'matteplastic',
-                        textureLabel: 'orange'
+                            width: 4.0,
+                            height: 3.0
+                        }
                     },
                     physics: {},
                     config: {
-                        textScale: 0.4
+                        textScale: 0.8
                     },
                     input: {
-                        textLines: [{text:'hello!!!!'}]
+                        textLines: [
+                            {font:'courier', textColor:'yellow', style:'bold italic'},
+                            {text:'Carnival Studio (v1)'},
+                            {text:' '},
+                            {text:'(c)2016 Meta4 Media Ltd, open source'},
+                            {text:'            for all to enjoy and learn.'},
+                            {text:'Carnival Console 1.0'},
+                            {text:' '},
+                            {text:'Ready'},
+                            
+                        ]
+                    }
+                },
+                {
+                    component: 'glyphtext',
+                    label: 'text1',
+                    draw: {
+                        position: {x:2, y:0.3, z:3},
+                        orientation: {x:0, y:DEG(180), z:0}                        
+                    },
+                    config: {
+                        fontTag: 'lato-bold'
+                    },
+                    input: {
+                        text: '#virtualreality'
+                    }
+                },
+                {
+                    component: 'glyphtext',
+                    label: 'text2',
+                    draw: {
+                        position: {x:-1.7, y:0.3, z:-3}, 
+                        orientation: {x:0, y:0, z:0}
+                    },
+                    config: {
+                        fontTag: 'lato-bold'
+                    },
+                    input: {
+                        text: '/meta4vr'
+                    }
+                },
+                {
+                    component: 'picboard',
+                    label: 'sunrise1',
+                    draw: {
+                        position: {x:2, y:3, z:3.5},
+                        orientation: {x:0, y:DEG(180), z:0},
+                        shaderLabel: 'basic',
+                    },
+                    config: {
+                        src: 'http://domai.io.codex.cx/quick/sunrise1.jpg',
+                        targetHeight: 4.0,
+                        shouldSerialize: true
+                    }
+                },
+                {
+                    component: 'meshbasemesh',
+                    label: 'mermaid1',
+                    draw: {
+                        position: {x:0, y:0, z:2},
+                        orientation: {x:0, y:DEG(180), z:0}
+                    },
+                    config: {
+                        loadPreview: true,
+                        meshPath: '_/nudes/Mermaid__9ed4c17e.zip'
                     }
                 }
+                // {
+                //     component: 'textboard',
+                //     label: 'TEXTY',
+                //     draw: {
+                //         position: {x: 0.1914, y:0.8169, z:1.62},
+                //         rotationQuaternion: [0.217, 0.968, -0.117, 0.0359],
+                //         size: {
+                //             width: 0.3,
+                //             height: 0.1
+                //         },
+                //         materialLabel: 'matteplastic',
+                //         textureLabel: 'orange'
+                //     },
+                //     physics: {},
+                //     config: {
+                //         textScale: 0.4
+                //     },
+                //     input: {
+                //         textLines: [{text:'hello!!!!'}]
+                //     }
+                // }
             ]
         }
-        var txt = new CARNIVAL.components.textboard(sd2.objects[0]);
-        txt.prepare().then(addToScene);
+        // var txt = new CARNIVAL.components.textboard(sd2.objects[0]);
+        for (var i = 0; i < sd2.objects.length; i++) {
+            console.log('adding a ',sd2.objects[i].component);
+            var obj = new CARNIVAL.components[sd2.objects[i].component](sd2.objects[i]);
+            obj.prepare().then(addToScene);
+        }
+        // txt.prepare().then(addToScene);
+        
+        if (document.location.hash) scene.unpackSceneObjects(JSON.parse(atob(document.location.hash.slice(1))));
         
         /* Construct from markup */
         var mksc = document.querySelector('c-scene');
