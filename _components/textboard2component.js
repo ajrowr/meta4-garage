@@ -33,44 +33,52 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
     /* would be good to standardise this - make it so that we don't have to manually pass in rotationQuaternon etc. Ideally the entire p from params should
     be passed to the constructor and also mined for  */
     
-    var superclass = CARNIVAL.shape.Rectangle;
+    var drawableclass = CARNIVAL.shape.SegmentedRectangle;
+    
     
     var meta = {
         ident: 'net.meta4vr.textboard'
     };
         
     var TextBoard = function (params) {
-        this._paramsOrig = params;
-        var p = params || {};
-        this.size = {maxX: p.width || 2, maxY: p.height || 2};
-        superclass.call(this, 
-            p.position || {x:0, y:0, z:0}, 
-            this.size, 
-            p.orientation || {x:0, y:0, z:0}, 
-            {segmentsX:1, segmentsY:1, textureLabel:'orange', materialLabel:'matteplastic', label:p.label || null, rotationQuaternion:p.rotationQuaternion}
-        );
-        this.textScale = p.textScale || 1; // Use this to scale the text
-        this.canvasScale = p.canvasScale || 200; // generally better not to mess with this
+        CARNIVAL.component.Component.call(this, params, drawableclass);
+        
+        //
+        // this._paramsOrig = params;
+        // var p = params || {};
+        // this.size = {maxX: p.width || 2, maxY: p.height || 2};
+        // superclass.call(this,
+        //     p.position || {x:0, y:0, z:0},
+        //     this.size,
+        //     p.orientation || {x:0, y:0, z:0},
+        //     {segmentsX:1, segmentsY:1, textureLabel:'orange', materialLabel:'matteplastic', label:p.label || null, rotationQuaternion:p.rotationQuaternion}
+        // );
+        var cfg = (params || {}).config || {};
+        var input = (params || {}).input || {};
+        this.textScale = cfg.textScale || 1; // Use this to scale the text
+        this.canvasScale = cfg.canvasScale || 200; // generally better not to mess with this
         this.canvas = document.createElement('canvas');
-        this.canvas.width = this.canvasScale * this.size.maxX;
-        this.canvas.height = this.canvasScale * this.size.maxY;
+        // this.canvas.width = this.canvasScale * this.size.maxX;
+        // this.canvas.height = this.canvasScale * this.size.maxY;
+        this.canvas.width = this.canvasScale * this.drawParams.size.width;
+        this.canvas.height = this.canvasScale * this.drawParams.size.height;
         this.ctx = this.canvas.getContext('2d');
-        this.initialTextLines = p.textLines || [];
-        this.transparentBackground = p.transparentBackground || false;
+        this.initialTextLines = input.textLines || [];
+        this.transparentBackground = cfg.transparentBackground || false;
         if (this.transparentBackground) {
             this.shaderLabel = 'basic'; /* TODO make a special shader for this */
         }
         
-        this.backgroundColor = p.backgroundColor || (this.transparentBackground && 'rgba(0,0,255,0.89)' || 'rgba(0,0,255,1)');
+        this.backgroundColor = cfg.backgroundColor || (this.transparentBackground && 'rgba(0,0,255,0.89)' || 'rgba(0,0,255,1)');
         var fslh = this.calculateFontSizeAndLineHeight(this.canvasScale, this.textScale);
         this.boardRenderState = {
-            font: p.font || 'Arial',
-            fontSize: p.fontSize || fslh.fontSize,
-            lineHeight: p.lineHeight || fslh.lineHeight,
-            textColor: p.textColor || 'white',
+            font: cfg.font || 'Arial',
+            fontSize: cfg.fontSize || fslh.fontSize,
+            lineHeight: cfg.lineHeight || fslh.lineHeight,
+            textColor: cfg.textColor || 'white',
             // backgroundColor: p.backgroundColor || 'blue',
-            leftMargin: p.leftMargin || 4,
-            topMargin: p.topMargin || 4
+            leftMargin: cfg.leftMargin || 4,
+            topMargin: cfg.topMargin || 4
             
         };
         this.cursor = null;
@@ -78,37 +86,37 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
         
     };
     
-    TextBoard.prototype = Object.create(superclass.prototype);
+    TextBoard.prototype = Object.create(CARNIVAL.component.Component.prototype);
     
-    TextBoard.prototype.serialize = function () {
-        var component = this;
-        var mat = component.transformationMatrix();
-        
-        var getPos = function () {
-            var trans = vec3.create();
-            mat4.getTranslation(trans, mat);
-            return trans;
-            // return component.position; /* This should extract trans and rot from the transform matrix */
-        }
-        var getRot = function () {
-            var rot = quat.create();
-            mat4.getRotation(rot, mat);
-            return rot;
-            // return component.orientation;
-        }
-        
-        return {
-            component: this.meta.ident,
-            parameters: {
-                textLines: this._paramsOrig.textLines,
-                position: getPos(),
-                rotationQuaternion: getRot(),
-                orientation: this._paramsOrig.orientation,
-                width: this._paramsOrig.width,
-                height: this._paramsOrig.height                
-            }
-        }
-    }
+    // TextBoard.prototype.serialize = function () {
+    //     var component = this;
+    //     var mat = component.transformationMatrix();
+    //
+    //     var getPos = function () {
+    //         var trans = vec3.create();
+    //         mat4.getTranslation(trans, mat);
+    //         return trans;
+    //         // return component.position; /* This should extract trans and rot from the transform matrix */
+    //     }
+    //     var getRot = function () {
+    //         var rot = quat.create();
+    //         mat4.getRotation(rot, mat);
+    //         return rot;
+    //         // return component.orientation;
+    //     }
+    //
+    //     return {
+    //         component: this.meta.ident,
+    //         parameters: {
+    //             textLines: this._paramsOrig.textLines,
+    //             position: getPos(),
+    //             rotationQuaternion: getRot(),
+    //             orientation: this._paramsOrig.orientation,
+    //             width: this._paramsOrig.width,
+    //             height: this._paramsOrig.height
+    //         }
+    //     }
+    // }
     
     TextBoard.prototype.calculateFontSizeAndLineHeight = function (canvasScale, textScale) {
         return {
@@ -177,8 +185,8 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
                 
                 // var ctx = board.canvas.getContext('2d');
                 board.ctx.fillStyle = rstate.textColor;
-                board.ctx.font = "@S@px @F@".replace('@S@', rstate.fontSize).replace('@F@', rstate.font);
-                console.log('drawing text', text, board.cursor.x, board.cursor.y+rstate.fontSize)
+                board.ctx.font = "bold @S@px @F@".replace('@S@', rstate.fontSize).replace('@F@', rstate.font);
+                // console.log('drawing text', text, board.cursor.x, board.cursor.y+rstate.fontSize)
                 board.ctx.fillText(text, board.cursor.x, board.cursor.y+rstate.fontSize);
                 board.cursor.y += rstate.lineHeight;
                 
@@ -191,7 +199,7 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
     
     TextBoard.prototype.prepare = function () {
         var board = this;
-        board.texture = board.getTexture();
+        board.drawable.texture = board.getTexture();
         board.clear(board.backgroundColor, true);
         if (board.initialTextLines.length) {
             board.renderTextLines(board.initialTextLines);
