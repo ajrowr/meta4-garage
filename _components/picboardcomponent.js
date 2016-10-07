@@ -1,16 +1,26 @@
 CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
-    var superclass = CARNIVAL.shape.Rectangle;
+    
+    var drawableclass = CARNIVAL.shape.SegmentedRectangle;
     
     var PicBoard = function (params) {
-        var p = params || {};
-        this.size = {maxX:1, maxY:1}; /* We'll be updating this later */
-        this.boardscale = p.scale || (1/1000);
-        superclass.call(this, p.position || {x:0, y:0, z:0}, this.size, p.orientation || {x:0, y:0, z:0}, {segmentsX:1, segmentsY:1, materialLabel:p.materialLabel || 'matteplastic'});
+        /* We'll be calculating these later once we have info about the image dimensions */
+        /* targetHeight, targetWidth, scale are gotten from cfg */
+        this._explicitSize = {};
+        // this._explicitSize = function (s) {return {
+        //         width: 1,
+        //         height: 1,
+        //         depth: 0,
+        //         scale: 1
+        // }}(params.draw && params.draw.size || {});
+
+        CARNIVAL.component.Component.call(this, params, drawableclass);
         
-        this.dataSource = p.dataSource || null;
-        this.dataIndex = p.dataIndex || -1; /* -1 means random */
-        this.src = p.src || null;
-        this.shaderLabel = p.shaderLabel || null; /* Since we may sometimes want to use an alternate shader */
+        var cfg = (params || {}).config || {};
+        var input = (params || {}).input || {};
+        
+        this.src = cfg.src || null;
+        this.dataSource = cfg.dataSource || null;
+        this.dataIndex = cfg.dataIndex || -1; /* -1 means random */
         
         this._calcDims = (function (par) {
             if (par.targetHeight) {
@@ -31,10 +41,20 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
                     h: h*par.scale
                 }}
             }
-        })(p);
-    }
+            else {
+                console.log('No usable dimension factors were found for picboard.');
+            }
+            
+        })(cfg);
+        
+        
+        
+        // this.boardscale = p.scale || (1/1000);
+        // this.
+        
+    };
     
-    PicBoard.prototype = Object.create(superclass.prototype);
+    PicBoard.prototype = Object.create(CARNIVAL.component.Component.prototype);
     
     PicBoard.prototype.prepare = function () {
         var picboard = this;
@@ -44,10 +64,10 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
                 CARNIVAL._postRenderTasks.push(function () { /* I'm not sure the postRenderTasks thing is helping but at least it doesn't seem to hurt */
                     CARNIVAL.texture.fromImage(src, 'sunrise')
                     .then(function (texinf) {
-                        picboard.texture = texinf.texture;
+                        picboard.drawable.texture = texinf.texture;
                         var dims = picboard._calcDims(texinf.width, texinf.height);
-                        picboard.maxX = dims.w;
-                        picboard.maxY = dims.h;
+                        picboard.drawable.maxX = dims.w; /* TODO this breaks encapsulation :-| maybe like, drawable.setSize()? */
+                        picboard.drawable.maxY = dims.h;
                         resolve(picboard);
                     });
                     
@@ -83,10 +103,14 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
         else {
             return showPic(picboard.src);
         }
-        
-    }
+
+
+    };
+    
+    PicBoard.prototype.meta = {
+        ident: 'net.meta4vr.picboard'
+    };
     
     return PicBoard;
-
-
-}())
+    
+}());
