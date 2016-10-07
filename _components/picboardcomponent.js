@@ -108,7 +108,15 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
     };
     
     PicBoard.prototype.meta = {
-        ident: 'net.meta4vr.picboard'
+        ident: 'net.meta4vr.picboard',
+        config: [
+            {ident:'src', title:'Source URL', type:'url'},
+            {ident:'dataSource', title:'Datasource URL', type:'url'},
+            {ident:'dataIndex', title:'Datasource Index', type:'int'},
+        ],
+        input: [
+            
+        ]
     };
     
     return PicBoard;

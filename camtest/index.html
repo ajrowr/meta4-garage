@@ -106,10 +106,16 @@
             </table>
         </div>
         <div>
+            <button onclick="capscene();">Serialize Scene</button>
+        </div>
+        <div>
             <!-- <img src="http://domai.io.codex.cx/quick/sunrise1.jpg" id="sunrise1" crossorigin="anonymous" style="height:100px;">
             <img src="http://domai.io.codex.cx/quick/sunrise2.jpg" id="sunrise2" crossorigin="anonymous" style="height:100px;"> -->
             <video id="videoElem" width="100">
             </video>
+        </div>
+        <div id="content-controls" style="width:40%">
+            
         </div>
         
         <c-scene>
@@ -148,7 +154,79 @@
             var elem = document.getElementById(elemId);
             elem.value = parseFloat(elem.value) + delta;
         }
+        
+        window.buildContentControls = function () {
+            var container = document.querySelector('#content-controls');
+            var keys = Object.keys(CARNIVAL.components);
+            for (var i = 0; i < keys.length; i++) {
+                var comp = CARNIVAL.components[keys[i]];
+                var meta = comp.prototype.meta;
+                if (!(meta && keys[i].indexOf('.')>0)) continue;
+                console.log('building controls for', meta.ident);
+                
+                var newContainer = document.createElement('div');
+                newContainer.style.clear = 'left';
+                newContainer.style.margin = '1ex';
+                newContainer.style.padding = '1ex';
+                newContainer.style.border = '1px solid black';
+                var configElems = [];
+                if (meta.config) {
+                    for (var j = 0; j < meta.config.length; j++) {
+                        var myField = meta.config[j];
+                        var entryElem = document.createElement('input');
+                        entryElem.type = 'text';
+                        var labelElem = document.createElement('label');
+                        labelElem.innerText = myField.title;
+                        configElems.push({field:myField.ident, elem:entryElem});
+                        newContainer.appendChild(labelElem);
+                        newContainer.appendChild(entryElem);
+                        newContainer.appendChild(document.createElement('br'));
+                        container.appendChild(newContainer);
+                    }
+                }
 
+                var inputElems = [];
+                if (meta.input) {
+                    for (var j = 0; j < meta.input.length; j++) {
+                        var myField = meta.input[j];
+                        var entryElem = document.createElement('input');
+                        entryElem.type = 'text';
+                        var labelElem = document.createElement('label');
+                        labelElem.style.fontStyle = 'italic';
+                        labelElem.innerHTML = myField.title + '&nbsp;';
+                        inputElems.push({field:myField.ident, elem:entryElem});
+                        newContainer.appendChild(labelElem);
+                        newContainer.appendChild(entryElem);
+                        newContainer.appendChild(document.createElement('br'));
+                        container.appendChild(newContainer);
+                    }
+                }
+                
+                var button = document.createElement('button');
+                button.innerText = 'Add ' + meta.ident;
+                button.addEventListener('click', (function (ident, cfgElems, inpElems){
+                    return function () {window.addSceneComponentFromInputs(ident, cfgElems, inpElems)}
+                })(meta.ident, configElems, inputElems))
+                newContainer.appendChild(button);
+            }
+        }
+        
+        window.addSceneComponentFromInputs = function (componentIdent, configElems, inputElems) {
+            var inputs = {};
+            for (var i = 0; i < inputElems.length; i++) {
+                var myInput = inputElems[i];
+                inputs[myInput.field] = myInput.elem.value;
+            }
+            var configs = {};
+            for (var i = 0; i < configElems.length; i++) {
+                var myCfg = configElems[i];
+                configs[myCfg.field] = myCfg.elem.value;
+            }
+            configs.shouldSerialize = true;
+            var dataOut = {component:componentIdent, config:configs, input:inputs};
+            console.log('Building', dataOut);
+            S.addComponent(dataOut);
+        }
         
         </script>
         <!-- // <script src="/carnival/lib/fc_engine.js"></script> -->

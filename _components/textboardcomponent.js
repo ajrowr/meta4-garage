@@ -64,6 +64,7 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
         this.canvas.height = this.canvasScale * this.drawParams.size.height;
         this.ctx = this.canvas.getContext('2d');
         this.currentTextLines = input.textLines || [];
+        this.currentText = input.text || null;
         this.transparentBackground = cfg.transparentBackground || false;
         if (this.transparentBackground) {
             this.shaderLabel = 'basic'; /* TODO make a special shader for this */
@@ -222,13 +223,25 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
         if (board.currentTextLines.length) {
             board.renderTextLines(board.currentTextLines);
         }
+        else if (board.currentText) {
+            board.addTextLines([{text:board.currentText}]);
+        }
         // board.updateTexture();
         return new Promise(function (resolve, reject) {
             resolve(board);
         });
     }
     
-    TextBoard.prototype.meta = meta;
+    TextBoard.prototype.meta = {
+        ident: 'net.meta4vr.textboard',
+        config: [
+            {ident:'textScale', title:'Text Scale', type:'float'}
+        ],
+        input: [
+            {ident:'text', title:'Text', type:'text'}
+            // {ident:'textLines', title:'Text Lines', type:'array,text'}
+        ]
+    };
     
     return TextBoard;
     

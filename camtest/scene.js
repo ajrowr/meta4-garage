@@ -251,6 +251,15 @@ window.ExperimentalScene = (function () {
         }
     }
     
+    Scene.prototype.addComponent = function (dat) {
+        var scene = this;
+        var obj = new CARNIVAL.components[dat.component](dat);
+        obj.prepare().then(function (o) {
+            scene.attachToController(o.drawable, 1); //<<TODO really want to be able to attach components to controllers! recursive behaviours I guess? or no
+            scene.addObject(o);
+        });
+    }
+    
     Scene.prototype.setupScene = function () {
         var scene = this;
         var _hidden = function () {return {x:0, y:-100, z:0};} /* For things that get positioned dynamically eg cursor and controller trackers */
@@ -470,7 +479,7 @@ window.ExperimentalScene = (function () {
         var scenedef = {
             objects: [
                 // {component:'textboard', parameters: {position:{x:1, y:1, z:-1}, orientation:{x:0, y:3.14, z:0}, textLines: [{text:'hi'}]}},
-                {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}},
+                // {component:'picboard', parameters: {position:{x:2, y:3, z:3.5}, orientation:{x:0, y:3.14, z:0}, src:'http://domai.io.codex.cx/quick/sunrise1.jpg', targetHeight:4.0, shaderLabel:'basic'}},
                 {component:'cameradummy', parameters: {attachTo:'cam4'}},
                 // {component:'textboard', parameters: {
                 //     position: {x:-6, y:0, z: 0},
@@ -601,7 +610,7 @@ window.ExperimentalScene = (function () {
                     config: {
                         src: 'http://domai.io.codex.cx/quick/sunrise1.jpg',
                         targetHeight: 4.0,
-                        shouldSerialize: true
+                        shouldSerialize: false
                     }
                 },
                 {
@@ -718,6 +727,7 @@ window.ExperimentalScene = (function () {
             tilt: {x:0, y:180, z:0.0}
         })
         
+        window.buildContentControls();
         
         scene.where = {
             x:3

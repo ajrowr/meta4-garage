@@ -37,7 +37,14 @@ CARNIVAL.registerComponent('net.meta4vr.meshbasemesh', function () {
     };
     
     MeshbaseMesh.prototype.meta = {
-        ident: 'net.meta4vr.meshbasemesh'
+        ident: 'net.meta4vr.meshbasemesh',
+        config: [
+            {ident: 'loadPreview', title:'Load Preview', type:'boolean'},
+            {ident: 'meshPath', title:'Mesh Path', type:'text'}
+        ],
+        input: [
+            
+        ]
     };
     
     return MeshbaseMesh;
