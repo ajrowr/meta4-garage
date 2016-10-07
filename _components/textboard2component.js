@@ -63,7 +63,7 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
         this.canvas.width = this.canvasScale * this.drawParams.size.width;
         this.canvas.height = this.canvasScale * this.drawParams.size.height;
         this.ctx = this.canvas.getContext('2d');
-        this.initialTextLines = input.textLines || [];
+        this.currentTextLines = input.textLines || [];
         this.transparentBackground = cfg.transparentBackground || false;
         if (this.transparentBackground) {
             this.shaderLabel = 'basic'; /* TODO make a special shader for this */
@@ -78,7 +78,8 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
             textColor: cfg.textColor || 'white',
             // backgroundColor: p.backgroundColor || 'blue',
             leftMargin: cfg.leftMargin || 4,
-            topMargin: cfg.topMargin || 4
+            topMargin: cfg.topMargin || 4,
+            style: cfg.style || ''
             
         };
         this.cursor = null;
@@ -136,9 +137,10 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
     
     TextBoard.prototype.reset = function () {
         /* Just clearing the canvas doesn't work properly when we're using transparent backgrounds */
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = this.canvasScale * this.size.maxX;
-        this.canvas.height = this.canvasScale * this.size.maxY;
+        var newCanvas = document.createElement('canvas');
+        newCanvas.width = this.canvas.width;
+        newCanvas.height = this.canvas.height;
+        this.canvas = newCanvas;
         this.ctx = this.canvas.getContext('2d');
         this.cursor = null;
         this.clear();
@@ -178,6 +180,7 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
             rstate.lineHeight = line.lineHeight || rstate.lineHeight;
             rstate.leftMargin = line.leftMargin || rstate.leftMargin;
             rstate.topMargin = line.topMargin || rstate.topMargin;
+            rstate.style = line.style || rstate.style;
             
             text = line.text || null;
             
@@ -185,7 +188,7 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
                 
                 // var ctx = board.canvas.getContext('2d');
                 board.ctx.fillStyle = rstate.textColor;
-                board.ctx.font = "bold @S@px @F@".replace('@S@', rstate.fontSize).replace('@F@', rstate.font);
+                board.ctx.font = "@ST@ @SZ@px @F@".replace('@SZ@', rstate.fontSize).replace('@F@', rstate.font).replace('@ST@', rstate.style);
                 // console.log('drawing text', text, board.cursor.x, board.cursor.y+rstate.fontSize)
                 board.ctx.fillText(text, board.cursor.x, board.cursor.y+rstate.fontSize);
                 board.cursor.y += rstate.lineHeight;
@@ -197,12 +200,27 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
         board.updateTexture();
     }
     
+    TextBoard.prototype.addTextLines = function (lines) {
+        for (var i = 0; i < lines.length; i++) {
+            this.currentTextLines.push(lines[i]);
+        }
+        // this.currentTextLines.push(line);
+        this.reset();
+        this.renderTextLines(this.currentTextLines);
+    }
+    
+    TextBoard.prototype.setText = function (lines) {
+        this.currentTextLines = lines;
+        this.reset();
+        this.renderTextLines(this.currentTextLines);
+    }
+    
     TextBoard.prototype.prepare = function () {
         var board = this;
         board.drawable.texture = board.getTexture();
         board.clear(board.backgroundColor, true);
-        if (board.initialTextLines.length) {
-            board.renderTextLines(board.initialTextLines);
+        if (board.currentTextLines.length) {
+            board.renderTextLines(board.currentTextLines);
         }
         // board.updateTexture();
         return new Promise(function (resolve, reject) {

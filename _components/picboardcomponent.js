@@ -41,14 +41,17 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
         
         var showPic = function (src) {
             return new Promise(function (resolve, reject) {
-                CARNIVAL.texture.fromImage(src, 'sunrise')
-                .then(function (texinf) {
-                    picboard.texture = texinf.texture;
-                    var dims = picboard._calcDims(texinf.width, texinf.height);
-                    picboard.maxX = dims.w;
-                    picboard.maxY = dims.h;
-                    resolve(picboard);
-                });
+                CARNIVAL._postRenderTasks.push(function () { /* I'm not sure the postRenderTasks thing is helping but at least it doesn't seem to hurt */
+                    CARNIVAL.texture.fromImage(src, 'sunrise')
+                    .then(function (texinf) {
+                        picboard.texture = texinf.texture;
+                        var dims = picboard._calcDims(texinf.width, texinf.height);
+                        picboard.maxX = dims.w;
+                        picboard.maxY = dims.h;
+                        resolve(picboard);
+                    });
+                    
+                })
             });
         }
         
@@ -58,12 +61,13 @@ CARNIVAL.registerComponent('net.meta4vr.picboard', function () {
                 xhr.responseType = 'json';
                 xhr.addEventListener('load', function (evt) {
                     if (xhr.status == 200) {
-                        console.log(xhr.response);
+                        // console.log(xhr.response);
                         var itemsList = xhr.response.pics;
                         var r;
                         if (picboard.dataIndex < 0) r = Math.floor(Math.random()*itemsList.length);
                         else r = picBoard.dataIndex;
                         showPic(itemsList[r].src).then(function () {
+                            console.log(itemsList[r].src);
                             resolve(picboard);
                         });
                     }

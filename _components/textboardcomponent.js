@@ -178,7 +178,7 @@ CARNIVAL.registerComponent('net.meta4vr.textboard', function () {
                 // var ctx = board.canvas.getContext('2d');
                 board.ctx.fillStyle = rstate.textColor;
                 board.ctx.font = "@S@px @F@".replace('@S@', rstate.fontSize).replace('@F@', rstate.font);
-                console.log('drawing text', text, board.cursor.x, board.cursor.y+rstate.fontSize)
+                // console.log('drawing text', text, board.cursor.x, board.cursor.y+rstate.fontSize)
                 board.ctx.fillText(text, board.cursor.x, board.cursor.y+rstate.fontSize);
                 board.cursor.y += rstate.lineHeight;
                 
